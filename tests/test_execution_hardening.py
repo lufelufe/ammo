@@ -232,3 +232,60 @@ def test_former_extra_roles_appends_known_position(heal_root):
     task = TaskAnalyzer(systems=[]).analyze("오늘 할 일 정리해줘")
     plan = TeamFormer(graph).form(task, extra_roles=["critic", "nonsense_role"])
     assert plan.roles == ["fast_worker", "critic"]          # unknown role ignored
+
+
+# --- P3: the test_runner seat runs the declared test command for real ------------
+
+def _test_cmd_root(tmp_path, command):
+    root = tmp_path / "root"
+    root.mkdir()
+    os.symlink(REPO_ROOT / "registry", root / "registry")
+    shutil.copytree(REPO_ROOT / "systems", root / "systems")
+    for name in ("runtime", "memory", "vaults"):
+        (root / name).mkdir()
+    (root / "systems" / "coding" / ".ammo" / "verification.yaml").write_text(
+        "apiVersion: ammo/v1\nkind: Verification\nsystem: coding\n"
+        f"success_evidence: [test_result]\ntest_command: \"{command}\"\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+HAVE_ISOLATION = __import__("ammo.tools.os_sandbox", fromlist=["detect_isolation"]).detect_isolation() is not None
+
+
+@pytest.mark.skipif(not HAVE_ISOLATION, reason="needs OS isolation for arbitrary test commands")
+@pytest.mark.parametrize("command,expect_ok", [("true", True), ("false", False)])
+def test_declared_test_command_runs_for_real(tmp_path, monkeypatch, capsys, command, expect_ok):
+    from ammo import cli
+
+    root = _test_cmd_root(tmp_path, command)
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    code = cli.main(["run", "--mock", "--execute-tools", "--show-confidence",
+                     "이 python repo 버그 고치고 테스트 추가해줘"])
+    out = capsys.readouterr().out
+    assert code == 0
+    import json as _json
+    run_id = next(l.split(": ", 1)[1] for l in out.splitlines() if l.startswith("run_id"))
+    steps = _json.loads((root / "runtime" / "runs" / run_id / "step_outputs.json")
+                        .read_text(encoding="utf-8"))
+    seat = next(s for s in steps if s["role"] == "test_runner")
+    test_ev = [e for e in seat["evidence"] if e["kind"] == "test_result"]
+    assert test_ev and test_ev[0]["ok"] is expect_ok
+    if expect_ok:
+        assert "declared success evidence present: test_result" in out or "tests passed" in out
+
+
+def test_without_sandbox_no_real_test_run(tmp_path, monkeypatch, capsys):
+    from ammo import cli
+
+    root = _test_cmd_root(tmp_path, "true")
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    cli.main(["run", "--mock", "이 python repo 버그 고치고 테스트 추가해줘"])  # no --execute-tools
+    out = capsys.readouterr().out
+    run_id = next(l.split(": ", 1)[1] for l in out.splitlines() if l.startswith("run_id"))
+    import json as _json
+    steps = _json.loads((root / "runtime" / "runs" / run_id / "step_outputs.json")
+                        .read_text(encoding="utf-8"))
+    seat = next(s for s in steps if s["role"] == "test_runner")
+    assert not [e for e in seat["evidence"] if e["kind"] == "test_result"]

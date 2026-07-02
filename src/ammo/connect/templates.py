@@ -175,6 +175,7 @@ def render_pack_files(
         f"system: {system_id}\n"
         "success_evidence: []   # evidence kinds that raise confidence (e.g. test_result, citation)\n"
         "required_outputs: []   # outputs a complete result must include\n"
+        "test_command: null     # e.g. \"python -m pytest -q\" — run for REAL in the sandbox\n"
     )
     limits = (
         "# limits.yaml — per-system caps and gates (optional).\n"

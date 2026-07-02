@@ -78,6 +78,34 @@ def _cmd_run(args: argparse.Namespace) -> int:
             except RegistryError:
                 pass
 
+        # P3: the test_runner seat runs the system's DECLARED test command for
+        # real inside the sandbox — test_result evidence becomes measured fact
+        if sandbox is not None and "test_runner" in current_plan.roles and pack:
+            test_command = (pack.verification or {}).get("test_command")
+            if test_command:
+                import shlex
+
+                from ammo.adapters.contract import Evidence
+                from ammo.tools.sandbox import SandboxError
+
+                try:
+                    t_code, t_out = sandbox.run(shlex.split(str(test_command)),
+                                                timeout=120)
+                    t_ok = t_code == 0
+                    test_ev = Evidence(
+                        "test_result",
+                        f"tests {'passed' if t_ok else 'failed'} "
+                        f"(`{test_command}` exit {t_code})",
+                        ok=t_ok, detail=(t_out or "")[-400:],
+                    )
+                except SandboxError as exc:
+                    test_ev = Evidence("test_result", "test run blocked",
+                                       ok=False, detail=str(exc))
+                seat = next((r for r in result.responses
+                             if r.role == "test_runner"), None)
+                if seat is not None:
+                    seat.evidence.append(test_ev)
+
         report = ConfidenceEngine().assess(
             task, current_plan, result.responses, mode=result.mode,
             verification=pack.verification if pack else None,
