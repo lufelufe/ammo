@@ -130,6 +130,16 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — `ammo dream` (memory consolidation)** *(automates
+  `docs/MEMORY_DREAM.md`'s quantitative pass)*. Dry-run by default, `--apply`
+  backs the DB up first. Rebuilds `model_performance`/`team_synergy` from the
+  last `--window N` runs (default 50) — which fixes three decay modes at once:
+  stale runs no longer dominate all-time averages, legacy domain-keyed rows
+  merge into system tags via tag re-derivation, and rows for models absent from
+  the registry are dropped as orphans. Per-model cost/token averages carry over
+  from a pre-rebuild snapshot (runs don't store per-model usage). Prunes run
+  rows + `runtime/runs/` dirs beyond the window and distills oversized role
+  journals into `insights.md` + the most-recent N entries. Idempotent.
 - **Delivery M18 — Summon protocol & bootstrap** *(the entry ritual)*. The
   summon word is **"ammo"**, identical in every environment (`docs/SUMMON.md`;
   the auto-loaded `AGENTS.md` is the universal agent shim, passing

@@ -75,6 +75,11 @@ def _is_success(score: Optional[float]) -> bool:
     return score is not None and score >= 0.5
 
 
+def _signature_models(signature: str) -> List[str]:
+    """Model ids referenced by a 'role:model+role:model' team signature."""
+    return [token.split(":", 1)[1] for token in signature.split("+") if ":" in token]
+
+
 class MemoryStore:
     def __init__(self, db_path: Path):
         self.path = Path(db_path)
@@ -266,6 +271,72 @@ class MemoryStore:
             "SELECT * FROM runs WHERE selected_system=? ORDER BY timestamp DESC", (system_id,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+    # -- dream / consolidation primitives ------------------------------------
+
+    def model_cost_snapshot(self) -> Dict[str, Dict[str, float]]:
+        """Per-model avg tokens/cost (attempt-weighted across tags).
+
+        Per-run per-model usage is not stored in `runs`, so a rebuild cannot
+        recompute these — the snapshot carries the best-known values over.
+        """
+        snapshot: Dict[str, Dict[str, float]] = {}
+        for row in self.all_model_performance():
+            m = snapshot.setdefault(row["model_id"], {"attempts": 0, "tokens": 0.0, "cost": 0.0})
+            attempts = row["attempts"] or 0
+            m["tokens"] += (row["average_tokens"] or 0.0) * attempts
+            m["cost"] += (row["average_cost"] or 0.0) * attempts
+            m["attempts"] += attempts
+        return {
+            model: {
+                "tokens": (v["tokens"] / v["attempts"]) if v["attempts"] else 0.0,
+                "cost": (v["cost"] / v["attempts"]) if v["attempts"] else 0.0,
+            }
+            for model, v in snapshot.items()
+        }
+
+    def rebuild_aggregates(self, runs: List[Dict[str, Any]], known_models) -> None:
+        """Rebuild model_performance/team_synergy from the given runs.
+
+        `runs` are consumed oldest-first; models not in `known_models` are
+        excluded (orphans); tags are re-derived (system, falling back to
+        domain), which also merges legacy domain-keyed rows. Cost/token
+        averages are carried over from the pre-rebuild snapshot.
+        """
+        known = set(known_models)
+        snapshot = self.model_cost_snapshot()
+        with self.conn:
+            self.conn.execute("DELETE FROM model_performance")
+            self.conn.execute("DELETE FROM team_synergy")
+            for run in runs:
+                score = run.get("confidence_score")
+                success = _is_success(score)
+                tag = run.get("selected_system") or run.get("domain") or "general"
+                for model_id in run.get("selected_models") or []:
+                    if model_id not in known:
+                        continue
+                    carried = snapshot.get(model_id, {})
+                    self._bump_model(model_id, tag, score, success, run.get("timestamp"),
+                                     carried.get("tokens", 0.0), carried.get("cost", 0.0))
+                signature = run.get("team_signature")
+                if signature and all(
+                    m in known for m in _signature_models(signature)
+                ):
+                    self._bump_team(signature, tag, score, success,
+                                    run.get("estimated_cost") or 0.0)
+
+    def prune_runs_keep(self, keep: int) -> List[str]:
+        """Delete run rows beyond the newest `keep`; return the deleted ids."""
+        rows = self.conn.execute(
+            "SELECT run_id FROM runs ORDER BY timestamp DESC, run_id DESC"
+        ).fetchall()
+        doomed = [r["run_id"] for r in rows[keep:]]
+        if doomed:
+            with self.conn:
+                self.conn.executemany(
+                    "DELETE FROM runs WHERE run_id=?", [(rid,) for rid in doomed]
+                )
+        return doomed
 
     def all_model_performance(self) -> List[Dict[str, Any]]:
         return [dict(r) for r in self.conn.execute("SELECT * FROM model_performance")]

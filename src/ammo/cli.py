@@ -312,6 +312,18 @@ def build_parser() -> argparse.ArgumentParser:
     pricing_set.add_argument("--billing", choices=["api", "subscription", "local"])
     pricing_set.set_defaults(func=_cmd_pricing_set)
 
+    dream_parser = subparsers.add_parser(
+        "dream",
+        help="Consolidate memory: rebuild aggregates, drop orphans, prune, distill journals.",
+    )
+    dream_parser.add_argument("--apply", action="store_true",
+                              help="Perform the consolidation (default: dry-run report).")
+    dream_parser.add_argument("--window", type=int, default=50,
+                              help="Recent runs to keep/rebuild from (default 50).")
+    dream_parser.add_argument("--journal-keep", type=int, default=20,
+                              help="Journal entries to keep per role (default 20).")
+    dream_parser.set_defaults(func=_cmd_dream)
+
     efficiency_parser = subparsers.add_parser(
         "efficiency", help="Quality-per-cost report from recorded runs.",
     )
@@ -540,6 +552,16 @@ def _cmd_pricing_set(args: argparse.Namespace) -> int:
     book.save()
     print(f"Updated {price.id}: in ${price.price_per_mtok_in}/MTok, "
           f"out ${price.price_per_mtok_out}/MTok [{price.billing}]")
+    return 0
+
+
+def _cmd_dream(args: argparse.Namespace) -> int:
+    from ammo.dream import DreamEngine
+
+    engine = DreamEngine(find_ammo_root(), window=args.window,
+                         journal_keep=args.journal_keep)
+    report = engine.apply() if args.apply else engine.plan()
+    print(report.to_text())
     return 0
 
 

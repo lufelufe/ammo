@@ -65,7 +65,19 @@ reverted; review outputs before adopting (consolidation can hallucinate).
 
 ## Status
 
-Adopted as policy (see `AGENTS.md` → Memory hygiene). The automated
-`ammo dream` command (windowed re-aggregation, orphan-row removal, run GC,
-journal distillation — dry-run by default, `--apply` with backup) is queued in
-`docs/BACKLOG.md`.
+Adopted as policy (see `AGENTS.md` → Memory hygiene) **and automated**:
+`ammo dream` implements the quantitative-memory pass — `src/ammo/dream/`.
+
+- **Dry-run by default**: `ammo dream` reports what would change; `--apply`
+  performs it after copying the DB to `ammo.sqlite.bak`.
+- **Consolidate**: rebuilds `model_performance`/`team_synergy` from the last
+  `--window N` runs (default 50), re-deriving tags (system, else domain) so
+  legacy domain-keyed rows merge; per-model cost/token averages carry over from
+  a pre-rebuild snapshot (runs don't store per-model usage).
+- **Dedup**: drops rows for models no longer in `registry/models.yaml`.
+- **Prune**: deletes run rows + `runtime/runs/` dirs beyond the window.
+- **Distill**: role journals over `--journal-keep` (default 20) are trimmed to
+  the most recent entries plus an `insights.md` summary.
+
+The doc-layer dream (specs/README/BACKLOG rot) remains a manual pass — code can
+consolidate numbers deterministically, but prose consolidation needs review.

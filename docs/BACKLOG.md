@@ -26,12 +26,13 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 
 ## Deferred risks / cleanups (by area)
 
-### Memory consolidation ("dream" — policy adopted, see docs/MEMORY_DREAM.md)
-- **`ammo dream` command** (chosen for later): windowed re-aggregation of
-  model_performance/team_synergy (all-time averages currently let stale runs
-  dominate), orphan-row removal for models absent from the registry, merge of
-  legacy domain-keyed rows, `runtime/runs/` GC after mining, role-journal
-  distillation into per-role insights. Dry-run default, `--apply` with DB backup.
+### Memory consolidation (`ammo dream` shipped — see docs/MEMORY_DREAM.md)
+- Quantitative pass (rebuild/dedup/prune/journal-distill) is implemented. Open:
+  - **Doc-layer dream is manual** — prose consolidation needs review; not automated.
+  - `insights.md` distillation is counts only; recurring corrections / best model
+    per role would be richer.
+  - Journal distillation archives by count, no semantic merge of archived turns.
+  - A `doctor` notice when run count crosses the window (suggest running `dream`).
 
 ### Environment / tooling
 - Standardize the run environment: system Python 3.14 lacks pytest/PyYAML; we use

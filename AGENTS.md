@@ -41,6 +41,7 @@ understand → capability graph → form team → (mock) execute → confidence 
 | Stage | Module | CLI |
 |-------|--------|-----|
 | Summon / bootstrap | `src/ammo/bootstrap.py`, `src/ammo/config.py` | `start`, `status` |
+| Memory consolidation | `src/ammo/dream/` | `dream [--apply]` |
 | Task understanding | `src/ammo/kernel/task_understanding/` | `analyze` |
 | Capability graph | `src/ammo/kernel/capability_graph/` | `list-models`, `score-models` |
 | Team formation | `src/ammo/kernel/team_formation/` | `plan-team` |
@@ -141,5 +142,5 @@ API/HTTP route, and spec→engine wiring (see `docs/BACKLOG.md`).
 - `docs/MODEL_ADAPTER_SPEC.md` — the adapter contract.
 - `docs/HERMES_INTEGRATION.md` — what AMMO adopts/rejects from hermes-agent.
 - `docs/SUMMON.md` — the "ammo" summon protocol (boot sequence, per-host shims).
-- `docs/MEMORY_DREAM.md` — memory-consolidation playbook (layers, 4 steps, checklist).
+- `docs/MEMORY_DREAM.md` — memory-consolidation playbook (layers, 4 steps); automated by `ammo dream`.
 - `docs/ROADMAP.md` — phases + delivery log (status). `docs/BACKLOG.md` — deferred risks/decisions.
