@@ -159,3 +159,25 @@ def test_cli_run_honors_pack_specs(ammo_root, capsys):
     assert "team: planner, builder" in out                      # max_team_size: 2
     assert "gate: below the system confidence_gate (0.95)" in out
     assert "escalation: add_role:critic" in out
+
+
+def test_required_outputs_gap_lowers_confidence():
+    engine = ConfidenceEngine()
+    task = TaskVector(raw_input="x", domain="research", intent="answer", risk="low")
+    plan = ExecutionPlan(selected_system="s", selected_team=[TeamMember("researcher", "m")],
+                         roles=["researcher"], risk_controls=[],
+                         expected_outputs=["summary"])
+    resp = [_mk("researcher", [Evidence("note", "done", ok=True)])]
+    spec = {"required_outputs": ["summary", "citations"]}
+    report = engine.assess(task, plan, resp, mode="real", verification=spec)
+    assert any("not planned: citations" in r for r in report.reasons_negative)
+    assert not any("not planned: summary" in r for r in report.reasons_negative)
+
+
+def test_preferred_roles_lead_and_survive_the_cap(graph, analyzer):
+    task = analyzer.analyze("이 python repo 버그 고쳐줘")   # planner,builder,critic,...
+    plan = TeamFormer(graph,
+                      preferences={"preferred_roles": ["critic"]},
+                      limits={"max_team_size": 2}).form(task)
+    assert plan.roles[0] == "critic"                        # moved to the lead seat
+    assert "critic" in plan.roles and len(plan.roles) == 2  # survived the cap

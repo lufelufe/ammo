@@ -107,6 +107,15 @@ class ConfidenceEngine:
                 score -= 0.06
                 neg.append(f"declared success evidence missing: {kind}")
 
+        # 5c. verification.yaml required_outputs: a complete result here must
+        # plan for these outputs — an unplanned one is a completeness gap
+        required = list((verification or {}).get("required_outputs") or [])[:3]
+        planned = {o.lower() for o in (plan.expected_outputs or [])}
+        for output in required:
+            if str(output).lower() not in planned:
+                score -= 0.05
+                neg.append(f"declared required output not planned: {output}")
+
         # 6. tool outcomes: a denied tool means a member wanted a capability it
         # never got; a failed execution means claimed work didn't happen. Both
         # make the output less trustworthy. Successful side-effecting execution

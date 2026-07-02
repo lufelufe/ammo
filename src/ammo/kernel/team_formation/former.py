@@ -59,7 +59,15 @@ class TeamFormer:
         if template == "coding_standard" and task.needs_tests:
             positions.append("test_runner")
 
-        # limits.yaml: max_team_size truncates (template order is priority order)
+        # preferences.yaml preferred_roles: bias positions toward these — they
+        # move to the front (stable), so they take the lead seat and survive a
+        # max_team_size cut. No new seats are invented.
+        preferred = [r for r in (self.preferences.get("preferred_roles") or [])]
+        if preferred:
+            rank = {role: i for i, role in enumerate(preferred)}
+            positions.sort(key=lambda p: (rank.get(p, len(rank)),))
+
+        # limits.yaml: max_team_size truncates (position order is priority order)
         max_team = self.limits.get("max_team_size")
         if max_team:
             positions = positions[: int(max_team)]

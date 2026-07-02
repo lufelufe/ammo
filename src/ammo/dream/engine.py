@@ -33,6 +33,7 @@ class DreamReport:
     tags_after: int = 0
     runs_pruned: List[str] = field(default_factory=list)
     run_dirs_pruned: List[str] = field(default_factory=list)
+    sandboxes_pruned: List[str] = field(default_factory=list)
     journals: List[Dict[str, Any]] = field(default_factory=list)  # {system, role, entries, keep}
     backup: str = ""
     notes: List[str] = field(default_factory=list)
@@ -51,7 +52,8 @@ class DreamReport:
         )
         lines.append(
             f"prune: {len(self.runs_pruned)} run row(s) beyond window, "
-            f"{len(self.run_dirs_pruned)} run artifact dir(s)"
+            f"{len(self.run_dirs_pruned)} run artifact dir(s), "
+            f"{len(self.sandboxes_pruned)} orphan sandbox dir(s)"
         )
         for j in self.journals:
             lines.append(
@@ -116,7 +118,26 @@ class DreamEngine:
             )
 
         report.journals = self._oversized_journals()
+        report.sandboxes_pruned = self._orphan_sandboxes(set(all_ids[: self.window]))
         return report
+
+    def _orphan_sandboxes(self, kept_run_ids) -> List[str]:
+        """Sandbox dirs not referenced by any kept run's summary."""
+        sandbox_root = self.root / "runtime" / "sandbox"
+        if not sandbox_root.is_dir():
+            return []
+        referenced = set()
+        for run_id in kept_run_ids:
+            summary = self.root / "runtime" / "runs" / run_id / "run_summary.json"
+            if summary.is_file():
+                try:
+                    path = json.loads(summary.read_text(encoding="utf-8")).get("sandbox")
+                except json.JSONDecodeError:
+                    continue
+                if path:
+                    referenced.add(Path(path).name)
+        return sorted(p.name for p in sandbox_root.iterdir()
+                      if p.is_dir() and p.name not in referenced)
 
     def _oversized_journals(self) -> List[Dict[str, Any]]:
         out = []
@@ -169,6 +190,11 @@ class DreamEngine:
         runs_dir = self.root / "runtime" / "runs"
         for name in report.run_dirs_pruned:
             shutil.rmtree(runs_dir / name, ignore_errors=True)
+
+        # Prune: sandbox dirs no kept run references
+        sandbox_root = self.root / "runtime" / "sandbox"
+        for name in report.sandboxes_pruned:
+            shutil.rmtree(sandbox_root / name, ignore_errors=True)
 
         self._distill_journals(report)
         report.applied = True

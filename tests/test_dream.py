@@ -173,3 +173,19 @@ def test_doctor_quiet_below_window(root):
                      team_signature="builder:kimi_coder_mock", confidence_score=0.7)
     report = run_doctor(root)
     assert not any("ammo dream" in n for n in report.notices)
+
+
+def test_orphan_sandboxes_are_pruned_referenced_kept(root):
+    _seed(root)
+    sandbox_root = root / "runtime" / "sandbox"
+    (sandbox_root / "keepme").mkdir(parents=True)
+    (sandbox_root / "orphan1").mkdir()
+    # newest run (new3, inside window 5) references "keepme"
+    summary = root / "runtime" / "runs" / "new3" / "run_summary.json"
+    summary.write_text(json.dumps({"run_id": "new3",
+                                   "sandbox": str(sandbox_root / "keepme")}),
+                       encoding="utf-8")
+    report = DreamEngine(root, window=5).apply()
+    assert "orphan1" in report.sandboxes_pruned
+    assert not (sandbox_root / "orphan1").exists()
+    assert (sandbox_root / "keepme").is_dir()          # referenced -> survives

@@ -99,7 +99,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   - Seatbelt residuals: Apple marks `sandbox-exec` deprecated (still widely
     used, e.g. by Codex CLI); no CPU/memory limits; unix-domain sockets are
     not blocked (only `network*`).
-  - Sandbox dirs under `runtime/sandbox/` have no GC/pruning (promoted or not).
   - `ammo promote` flattens absolute write paths to basenames (mirrors the
     sandbox write rule) — relative-path fidelity for nested targets relies on
     workers requesting relative paths.
@@ -110,10 +109,8 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   names when adapters are finalized.
 
 ### Per-system optimization & evaluation (M13; spec wiring shipped in M19)
-- Wiring leftovers: `verification.required_outputs` (only `success_evidence` is
-  scored); `preferences.preferred_roles` (capabilities/bias/template are wired);
-  spec loading keys off `task.candidate_systems[0]` — if a binding redirects the
-  system, specs of the original candidate apply.
+- Spec loading keys off `task.candidate_systems[0]` — if a binding redirects
+  the system, specs of the original candidate apply.
 - `adopt` refines at **file granularity** (adds missing files, preserves
   existing). Field-level refine (merge missing keys into a partially-filled file)
   is deferred.
