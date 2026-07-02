@@ -43,6 +43,7 @@ class ConfidenceEngine:
         objections: Optional[Iterable[str]] = None,
         risk: Optional[str] = None,
         mode: str = "mock",
+        verification: Optional[dict] = None,
     ) -> ConfidenceReport:
         risk = risk or task.risk
         score = _BASE
@@ -95,6 +96,16 @@ class ConfidenceEngine:
             score -= min(len(open_objections), 3) * 0.12
             for obj in open_objections[:3]:
                 neg.append(f"unresolved objection — {obj}")
+
+        # 5b. verification.yaml: the system declares what counts as success here
+        declared = list((verification or {}).get("success_evidence") or [])[:3]
+        for kind in declared:
+            if any(ev.kind == kind and ev.ok for ev in all_evidence):
+                score += 0.06
+                pos.append(f"declared success evidence present: {kind}")
+            else:
+                score -= 0.06
+                neg.append(f"declared success evidence missing: {kind}")
 
         # 6. tool outcomes: a denied tool means a member wanted a capability it
         # never got; a failed execution means claimed work didn't happen. Both

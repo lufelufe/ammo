@@ -29,18 +29,25 @@ class ModelMemory(Protocol):
 
 
 OBJECTIVES = ("balanced", "performance", "cost", "speed")
+_COST_ORDER = {"cheap": 0, "standard": 1, "premium": 2}
+_BIAS_CAP = 2.0  # preferences.model_bias clamp; < capability match (+3)
 
 
 class TeamFormer:
     def __init__(self, graph: CapabilityGraph, memory: Optional[ModelMemory] = None,
                  binding=None, objective: str = "balanced",
-                 primary: Optional[str] = None):
+                 primary: Optional[str] = None,
+                 preferences: Optional[dict] = None,
+                 limits: Optional[dict] = None):
         self.graph = graph
         self.memory = memory
         self.binding = binding  # optional per-system Binding (constrains selection)
         self.objective = objective if objective in OBJECTIVES else "balanced"
         # the summoning host's model (ammo.config.yaml) anchors the LEAD seat
         self.primary = primary
+        # per-system optimization specs (.ammo/preferences.yaml, limits.yaml)
+        self.preferences = preferences or {}
+        self.limits = limits or {}
 
     # -- public -------------------------------------------------------------
 
@@ -49,6 +56,11 @@ class TeamFormer:
         positions = list(tpl.TEMPLATES[template])
         if template == "coding_standard" and task.needs_tests:
             positions.append("test_runner")
+
+        # limits.yaml: max_team_size truncates (template order is priority order)
+        max_team = self.limits.get("max_team_size")
+        if max_team:
+            positions = positions[: int(max_team)]
 
         team, notes = self._assign_models(positions, task)
         roles = [m.role for m in team]
@@ -71,6 +83,10 @@ class TeamFormer:
     # -- template selection -------------------------------------------------
 
     def _select_template(self, task: TaskVector) -> str:
+        # preferences.yaml: an explicit per-system template override wins
+        override = self.preferences.get("default_template")
+        if override in tpl.TEMPLATES:
+            return override
         if task.domain == "ops":
             return "ops_incident"
         if task.domain == "coding":
@@ -144,7 +160,14 @@ class TeamFormer:
             allowed = set(self.binding.model_ids)
             restricted = [n for n in nodes if n.id in allowed]
             if restricted:  # fall back to all if the binding can't be honored
-                return restricted
+                nodes = restricted
+        # limits.yaml: cost_class_max caps how expensive members may be
+        cost_max = self.limits.get("cost_class_max")
+        if cost_max in _COST_ORDER:
+            capped = [n for n in nodes
+                      if _COST_ORDER.get(n.cost_class, 1) <= _COST_ORDER[cost_max]]
+            if capped:  # fall back to all rather than leave seats unfillable
+                nodes = capped
         return nodes
 
     def _pick_model(self, position: str, task: TaskVector, used: Set[str],
@@ -183,7 +206,21 @@ class TeamFormer:
             if is_lead and qualified and node.id == self.primary:
                 primary_bonus = 1.5
                 reasons = list(reasons) + ["primary model (summoning host)"]
-            final.append((base + memory_bonus + primary_bonus, node.id, reasons))
+            # preferences.yaml: per-system model bias (qualified-only, clamped)
+            pref_bonus = 0.0
+            if qualified:
+                try:
+                    raw_bias = float(self.preferences.get("model_bias", {}).get(node.id, 0) or 0)
+                except (TypeError, ValueError):
+                    raw_bias = 0.0
+                if raw_bias:
+                    pref_bonus = max(-_BIAS_CAP, min(_BIAS_CAP, raw_bias))
+                    reasons = list(reasons) + ["system preference (model_bias)"]
+            if any(c in node.capabilities
+                   for c in self.preferences.get("preferred_capabilities") or []):
+                pref_bonus += 1.0
+            final.append((base + memory_bonus + primary_bonus + pref_bonus,
+                          node.id, reasons))
 
         if not final:
             return "unassigned", None

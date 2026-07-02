@@ -399,6 +399,35 @@ def _cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_pack_for_task(root, task):
+    """The candidate system's pack (specs: preferences/verification/limits/context)."""
+    system_id = task.candidate_systems[0] if task.candidate_systems else None
+    if not system_id:
+        return None
+    try:
+        return SystemPackLoader(root).load(system_id)
+    except RegistryError:
+        return None
+
+
+def _role_memory(root, system, roles):
+    """Distilled per-role memory (insights.md + last.md) for read-back injection."""
+    if not system:
+        return {}
+    workspace = RoleWorkspace(root)
+    out = {}
+    for role in roles:
+        role_dir = workspace.path(system, role)
+        parts = []
+        for name in ("insights.md", "last.md"):
+            f = role_dir / name
+            if f.is_file():
+                parts.append(f.read_text(encoding="utf-8")[-800:])
+        if parts:
+            out[role] = "\n".join(parts)
+    return out
+
+
 def _load_primary(root):
     """The summoning host's model from ammo.config.yaml (None if unset)."""
     from ammo.config import load_config
@@ -892,9 +921,12 @@ def _cmd_plan_team(args: argparse.Namespace) -> int:
     root = find_ammo_root()
     graph = CapabilityGraph.from_registry(root)
     task = TaskAnalyzer().analyze(args.text)
+    pack = _load_pack_for_task(root, task)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
+        preferences=pack.preferences if pack else None,
+        limits=pack.limits if pack else None,
     ).form(task)
     print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2))
     return 0
@@ -911,9 +943,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
     root = find_ammo_root()
     graph = CapabilityGraph.from_registry(root)
     task = TaskAnalyzer().analyze(args.text)
+    pack = _load_pack_for_task(root, task)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
+        preferences=pack.preferences if pack else None,
+        limits=pack.limits if pack else None,
     ).form(task)
 
     if args.real:
@@ -922,7 +957,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     else:
         factory = lambda model_id: MockAdapter(model_id)  # noqa: E731
         mode = "mock"
-    result = Runner(factory, mode=mode).run(plan, task)
+    result = Runner(factory, mode=mode).run(
+        plan, task,
+        system_context=(pack.context or "") if pack else "",
+        role_context=_role_memory(root, plan.selected_system, plan.roles),
+    )
 
     # tool execution + permission enforcement: workers' declared tools are gated
     # against the system's permissions.yaml + .ammoignore, then (safely) executed.
@@ -939,8 +978,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 sandbox_base.mkdir(parents=True, exist_ok=True)
                 sandbox = Sandbox(tempfile.mkdtemp(dir=str(sandbox_base)))
 
-            pack = SystemPackLoader(root).load(plan.selected_system)
-            executor = ToolExecutor(PermissionGate.from_pack(root, pack), sandbox=sandbox)
+            tool_pack = pack or SystemPackLoader(root).load(plan.selected_system)
+            executor = ToolExecutor(PermissionGate.from_pack(root, tool_pack), sandbox=sandbox)
             for response in result.responses:
                 for evidence in executor.run_all(response.tool_requests):
                     response.evidence.append(evidence)
@@ -951,7 +990,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         except RegistryError:
             pass
 
-    report = ConfidenceEngine().assess(task, plan, result.responses, mode=result.mode)
+    report = ConfidenceEngine().assess(
+        task, plan, result.responses, mode=result.mode,
+        verification=pack.verification if pack else None,
+    )
 
     # economics: estimate token usage + cost (api = spend, subscription =
     # equivalent value, local = 0) and feed it into the improvement loop.
@@ -1017,6 +1059,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
            if economics["unpriced_models"] else "")
     )
     print(f"confidence: {report.confidence_score} ({report.confidence_band})")
+    # limits.yaml: the system's own acceptance threshold
+    gate = (pack.limits or {}).get("confidence_gate") if pack else None
+    if gate is not None and report.confidence_score < float(gate):
+        escalation = (pack.limits or {}).get("escalation", "review")
+        print(f"gate: below the system confidence_gate ({gate}) — escalation: {escalation}")
     print(f"final: {result.final_output}")
 
     if args.show_confidence:
