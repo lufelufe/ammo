@@ -44,9 +44,12 @@ use the configured objective when no flag is given. No secrets.
 
 | Host | Shim |
 |---|---|
-| Terminal | none — `ammo start` (or `python -m ammo start`) |
-| Claude Code / Codex / other agents | An instruction in the auto-loaded guide (`AGENTS.md` → "Summon"): when the user says "ammo", run `python -m ammo start --host <id>`. Optionally a slash command in the host's local config. |
-| New host | Add one instruction line passing its `--host` id; `detect_host` env fingerprints are only a fallback. |
+| Terminal | `./ammo` launcher at the repo root (no venv activation needed), or `ammo` with the venv active |
+| Claude Code | `CLAUDE.md` carries the summon line directly (`--host claude-code`) |
+| Codex | reads `AGENTS.md` natively → its "Summon" section (`--host codex`) |
+| Qwen / Gemini CLIs | thin pointer files `QWEN.md` / `GEMINI.md` → AGENTS.md + summon line |
+| CLAUDE.md-compatible forks (GLM etc.) | covered by `CLAUDE.md` |
+| New host | add a one-line pointer file in its instruction-file convention passing its `--host` id; `detect_host` env fingerprints are only a fallback. |
 
 Host detection order: explicit `--host` flag (shim) → environment fingerprints
 (`CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` → claude-code, `CODEX_*` → codex) →

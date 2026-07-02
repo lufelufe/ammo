@@ -1,0 +1,10 @@
+#!/bin/sh
+# AMMO launcher — makes `./ammo` work from a bare terminal in this folder,
+# no venv activation needed. (Inside an agent, just say "ammo".)
+DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$DIR/.venv/bin/python" ]; then
+    exec "$DIR/.venv/bin/python" -m ammo "$@"
+fi
+echo "AMMO needs its virtualenv. One-time setup:" >&2
+echo "  cd \"$DIR\" && python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'" >&2
+exit 1

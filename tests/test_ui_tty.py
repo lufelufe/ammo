@@ -104,3 +104,14 @@ def test_help_lists_every_command(root):
                if a.__class__.__name__ == "_SubParsersAction")
     for command in sub.choices:
         assert command in out, f"--help is missing command: {command}"
+
+
+def test_repo_root_launcher_works_without_venv_activation(root):
+    """`./ammo` from a bare shell (Q2: summon from a plain terminal)."""
+    import subprocess
+
+    proc = subprocess.run([str(REPO_ROOT / "ammo"), "version"],
+                          capture_output=True, text=True,
+                          env={**os.environ, "AMMO_ROOT": str(root)}, timeout=30)
+    assert proc.returncode == 0
+    assert proc.stdout.startswith("ammo ")

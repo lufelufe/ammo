@@ -130,6 +130,19 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — multi-account Claude + summon accessibility.** Two-plus Claude
+  accounts on one Mac work WITHOUT switching macOS users: `CLAUDE_CONFIG_DIR`
+  fully separates auth slots (verified live), so the catalog ships a
+  `claude-code-b` provider (env `~/.claude-b`) that owns `claude_b_critic`
+  when logged in and gracefully falls back to the primary account when not —
+  true 2-account teams by just logging in (`CLAUDE_CONFIG_DIR=~/.claude-b
+  claude` → /login). Providers carry per-provider env (paths, never secrets)
+  through detection and invocation, and auth now requires the expected output
+  marker, fixing a live-found false-positive (`claude auth status` exits 0
+  even logged out). Summon works from more entry points: a `./ammo` launcher
+  at the repo root (no venv activation), the summon line directly in
+  `CLAUDE.md`, native `AGENTS.md` for Codex, and `QWEN.md`/`GEMINI.md`
+  pointer shims.
 - **Delivery — closing sweep (all remaining engineering backlog).** Recurring
   negative confidence reasons are recorded per run and aggregated by system
   evaluation into "recurring issue (n/N runs): ..." suggestions; dream's
