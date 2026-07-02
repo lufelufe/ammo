@@ -29,13 +29,24 @@ def _cmd_run(args: argparse.Namespace) -> int:
     graph = CapabilityGraph.from_registry(root)
     task = TaskAnalyzer().analyze(args.text)
     pack = _load_pack_for_task(root, task)
-    plan = TeamFormer(
+    former = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
         preferences=pack.preferences if pack else None,
         limits=pack.limits if pack else None,
         workflows=pack.workflow_list if pack else None,
-    ).form(task)
+    )
+    plan = former.form(task)
+
+    # P2: consensus sampling — the lead seat answered by N independent models
+    n_consensus = int(getattr(args, "consensus", 0) or 0)
+    if n_consensus >= 2 and plan.selected_team:
+        lead_role = plan.roles[0]
+        lead_model = plan.selected_team[0].model
+        alts = former.alternates(lead_role, task, exclude={lead_model},
+                                 k=n_consensus - 1)
+        if alts:
+            plan.consensus = {"role": lead_role, "models": alts}
 
     if args.real:
         factory = RealAdapterFactory(root=root, allow_paid=args.allow_paid)
@@ -191,6 +202,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 timestamp=now.isoformat(),
             )
 
+    if plan.consensus:
+        print(f"consensus: {plan.consensus['role']} sampled by "
+              f"{1 + len(plan.consensus['models'])} models "
+              f"({', '.join(plan.consensus['models'])} as alternates)")
     if plan.debate:
         print(f"debate: {plan.debate['proposer']} ⟷ {plan.debate['challenger']} "
               f"({plan.debate.get('rounds', 1)} round(s))")

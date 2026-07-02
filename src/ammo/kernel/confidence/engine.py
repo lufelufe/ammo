@@ -80,11 +80,22 @@ class ConfidenceEngine:
             score += 0.12
             pos.append(f"independent {checker_roles_present[0]} passed")
 
-        # 3. model agreement (distinct models, a checker in the loop, no objections)
-        distinct_models = {r.model for r in responses}
-        if len(distinct_models) >= 2 and checker_roles_present and not open_objections:
-            score += 0.10
-            pos.append("producer and checker agreed")
+        # 3. agreement — MEASURED consensus when sampled (a checker compared
+        # independent answers), else the distinct-models proxy
+        consensus_evidence = [ev for ev in all_evidence if ev.kind == "consensus"]
+        if consensus_evidence:
+            final_consensus = consensus_evidence[-1]
+            if final_consensus.ok:
+                score += 0.10
+                pos.append("measured consensus: independent models agree")
+            else:
+                score -= 0.08
+                neg.append(f"measured consensus failed — {final_consensus.summary}")
+        else:
+            distinct_models = {r.model for r in responses}
+            if len(distinct_models) >= 2 and checker_roles_present and not open_objections:
+                score += 0.10
+                pos.append("producer and checker agreed")
 
         # 4. tests: real passing test evidence raises; a code change without it lowers
         tests_passed = any(ev.kind in _REAL_TEST_KINDS and ev.ok for ev in all_evidence)

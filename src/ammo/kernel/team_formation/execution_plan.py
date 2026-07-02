@@ -34,6 +34,7 @@ class ExecutionPlan:
     workflow: Optional[str] = None          # pack workflow id when stage-routed
     workflow_gate: Optional[float] = None   # that workflow's confidence_gate
     debate: Optional[Dict[str, Any]] = None # {proposer, challenger, rounds}
+    consensus: Optional[Dict[str, Any]] = None  # {role, models: [alternates]}
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -48,4 +49,5 @@ class ExecutionPlan:
             "workflow": self.workflow,
             "workflow_gate": self.workflow_gate,
             "debate": self.debate,
+            "consensus": self.consensus,
         }

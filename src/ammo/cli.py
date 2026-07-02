@@ -180,6 +180,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Objective for team selection (default: configured value or balanced).",
     )
+    run_parser.add_argument(
+        "--consensus", type=int, nargs="?", const=2, default=0, metavar="N",
+        help="Sample the lead seat with N independent models and have the "
+             "checker measure agreement (bare flag = 2).",
+    )
     run_parser.add_argument("text", metavar="TEXT", help="The request to run.")
     run_parser.set_defaults(func=_cmd_run)
 

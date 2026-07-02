@@ -139,6 +139,24 @@ class TeamFormer:
                         "rounds": max(1, rounds)}
         return None
 
+    def alternates(self, position: str, task: TaskVector, exclude, k: int = 1):
+        """Next-best QUALIFIED models for a seat (consensus sampling pool)."""
+        spec = tpl.POSITION_SPEC.get(position)
+        if not spec:
+            return []
+        scored = []
+        for node in self._candidates():
+            if node.id in exclude:
+                continue
+            qualified = (
+                (spec.get("capability") and spec["capability"] in node.capabilities)
+                or (spec.get("role") and spec["role"] in node.roles)
+            )
+            if qualified:
+                scored.append((self._static_score(node, spec, task, set()), node.id))
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        return [model for _, model in scored[:k]]
+
     def _match_workflow(self, task: TaskVector):
         """A workflow routes only on an EXACT normalized id match with the
         task's intent or one of its tags — never fuzzily (a pack declaring

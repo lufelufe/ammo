@@ -34,6 +34,14 @@ REBUTTAL_INSTRUCTION = (
     "context). Defend it with evidence or REVISE it — output your final, "
     "corrected answer in full."
 )
+CONSENSUS_INSTRUCTION = (
+    "Multiple models answered the lead question independently (see the "
+    "'~alt' entries in the context). Compare them. Before your verdict, add "
+    "exactly one line: 'CONSENSUS: agree' if they substantively agree, or "
+    "'CONSENSUS: split — <the key difference>' if they do not."
+)
+_CONSENSUS_RE = re.compile(r"CONSENSUS:\s*(agree|split)\b[\s—:–-]*(.*)", re.IGNORECASE)
+
 FINAL_VERDICT_INSTRUCTION = (
     "You are the team's checker in a debate. The proposer has responded to "
     "your challenge (see the context). Judge the FINAL state of the work. "
@@ -79,6 +87,8 @@ class Runner:
                 step_context["role_memory"] = role_memory[:1000]
             if step.role in CHECKER_ROLES:
                 step_context["instruction"] = VERDICT_INSTRUCTION
+                if plan.consensus:
+                    step_context["instruction"] += "\n" + CONSENSUS_INSTRUCTION
             request = AdapterRequest(
                 role=step.role,
                 model=step.model,
@@ -89,8 +99,27 @@ class Runner:
             )
             response = self._execute_with_retry(adapter, request)
             self._attach_verdict_evidence(step.role, response)
+            if step.role in CHECKER_ROLES and plan.consensus:
+                self._attach_consensus_evidence(response)
             responses.append(response)
             context[step.role] = response.output
+
+            # consensus: the lead seat's question is answered independently by
+            # alternate models too; a later checker compares them (measured
+            # agreement instead of the absence-of-objection proxy)
+            consensus = plan.consensus
+            if consensus and step.role == consensus["role"]:
+                for alt_model in consensus.get("models") or []:
+                    alt = self._execute_with_retry(
+                        self._make_adapter(alt_model),
+                        AdapterRequest(role=step.role, model=alt_model,
+                                       task_input=task.raw_input,
+                                       system=plan.selected_system,
+                                       allowed_tools=list(plan.required_tools),
+                                       context=dict(step_context)),
+                    )
+                    responses.append(alt)
+                    context[f"{step.role}~alt:{alt_model}"] = alt.output
 
             # debate: the marked challenger's objection triggers rebuttal
             # rounds before the pipeline continues (challenge -> proposer
@@ -165,6 +194,21 @@ class Runner:
         text = (response.output or "").strip()
         return (not text or text.startswith("(command exited")
                 or text.startswith("(api error"))
+
+    @staticmethod
+    def _attach_consensus_evidence(response: AdapterResponse) -> None:
+        for line in reversed((response.output or "").splitlines()):
+            match = _CONSENSUS_RE.search(line)
+            if match:
+                verdict, detail = match.groups()
+                agree = verdict.lower() == "agree"
+                response.evidence.append(Evidence(
+                    kind="consensus",
+                    summary="models agree" if agree
+                    else f"models split — {detail.strip() or 'unspecified'}",
+                    ok=agree, detail=detail.strip(),
+                ))
+                return
 
     @staticmethod
     def _attach_verdict_evidence(role: str, response: AdapterResponse) -> None:
