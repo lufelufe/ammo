@@ -63,10 +63,22 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     #          read as the literal prompt, so the prompt goes via stdin only.
     # Structured-output invocations verified live 2026-07-02: claude JSON gives
     # result + usage + total_cost_usd; codex JSONL gives agent_message + usage.
+    # Lightweight worker mode MEASURED live 2026-07-02: replacing the full
+    # Claude Code session surface (system prompt/MCP/tools/CLAUDE.md) with a
+    # tiny worker prompt cut input tokens 22,803 -> 768 (~30x) and per-call
+    # cost $0.134 -> $0.015 for the same one-line answer.
     ProviderProfile(
         "claude-code", SUBSCRIPTION_CLI, "Claude Code",
         command="claude", auth_check=["claude", "auth", "status"],
-        invoke=["claude", "-p", "--output-format", "json"],
+        invoke=[
+            "claude", "-p", "--output-format", "json",
+            "--system-prompt",
+            "You are one worker in an AMMO model team. You receive a role, a "
+            "task, and prior members' outputs as context. Do your role's part "
+            "directly and concisely. Do not use tools.",
+            "--strict-mcp-config", "--disallowedTools", "*",
+            "--no-session-persistence",
+        ],
         parser="claude_json",
         models=["claude_a_planner", "claude_b_critic"], cost="included",
     ),
