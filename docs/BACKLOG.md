@@ -92,11 +92,13 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   answer). Feed real evidence (tool results, verification) before trusting
   real-mode confidence bands.
 - `ollama run {model}` remains unverified (ollama not installed on this machine).
-- **Tool execution — still open** (enforcement + soft sandbox are shipped, see
-  ROADMAP delivery log):
-  - **OS-level isolation** for git / network / arbitrary commands — the soft
-    sandbox's allowlist is deliberately tiny; a container/namespace step is
-    needed before broadening it.
+- **Tool execution — still open** (enforcement, soft sandbox, and macOS
+  seatbelt OS-isolation are shipped, see ROADMAP delivery log):
+  - **Linux isolation** not implemented (bubblewrap/namespaces candidate) —
+    non-mac machines fall back to the tiny allowlist.
+  - Seatbelt residuals: Apple marks `sandbox-exec` deprecated (still widely
+    used, e.g. by Codex CLI); no CPU/memory limits; unix-domain sockets are
+    not blocked (only `network*`).
   - Sandbox dirs under `runtime/sandbox/` have no GC/pruning (promoted or not).
   - `ammo promote` flattens absolute write paths to basenames (mirrors the
     sandbox write rule) — relative-path fidelity for nested targets relies on

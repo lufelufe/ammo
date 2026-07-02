@@ -112,6 +112,15 @@ def run_doctor(root: Path) -> DoctorReport:
                     f"`ammo connect <path> --id {child.name}`"
                 )
 
+    # informational: OS-level isolation availability for --execute-tools
+    from ammo.tools.os_sandbox import detect_isolation
+
+    if detect_isolation() is None:
+        report.notices.append(
+            "no OS-level isolation available (macOS seatbelt not found) — "
+            "`run --execute-tools` shell stays allowlist-only"
+        )
+
     # informational: memory bloat — suggest a dream pass (docs/MEMORY_DREAM.md)
     db = root / "memory" / "ammo.sqlite"
     if db.is_file():

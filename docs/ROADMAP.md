@@ -130,6 +130,15 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — OS-level isolation (macOS seatbelt).** With `sandbox-exec`
+  available, `--execute-tools` shell commands run **kernel-confined**: network
+  denied, writes only inside the sandbox dir (`/dev` excepted), HOME/TMPDIR
+  remapped into the sandbox — verified live (outside `touch` -> "Operation not
+  permitted", socket -> PermissionError, `git init/add` works confined). Under
+  isolation the tiny allowlist is bypassed (escalation commands stay banned),
+  so arbitrary commands including git become runnable; without it the soft
+  allowlist remains and `doctor` notices the gap. SBPL rule order (last match
+  wins) is asserted in tests.
 - **Delivery — Triage: self-diagnosis with proposed fixes.** Any unhandled CLI
   error becomes a diagnosis card (problem / likely cause / concrete fixes)
   instead of a traceback — rules match the exception FAMILY (MRO), so wrapped

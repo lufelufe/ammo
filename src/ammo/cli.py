@@ -1194,7 +1194,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     if tool_permitted or tool_denied:
         print(f"tools: {tool_permitted} permitted, {tool_denied} denied (enforced)")
     if sandbox is not None:
-        print(f"sandbox: {sandbox.dir}")
+        print(f"sandbox: {sandbox.dir} "
+              f"(os-isolation: {sandbox.isolation or 'none — allowlist shell only'})")
     print(
         f"economics: {economics['model_count']} model(s), "
         f"{economics['total_tokens']} tokens, "

@@ -61,12 +61,13 @@ models (`RealAdapterFactory`), falling back to mock otherwise. Tool calls are
 **permission-enforced** (`src/ammo/tools/`, default-deny against
 `permissions.yaml` + `.ammoignore`); safe read-only tools execute for real. With
 `run --execute-tools`, permitted side-effecting tools run in a **soft sandbox**
-(confined dir, minimal env, tiny command allowlist, timeout): `fs.write` mirrors
-into the sandbox and allowlisted `shell.run` executes; `ammo promote RUN_ID`
-applies sandboxed writes to the real target after a diff review. Per-system
-specs (preferences/limits/verification/context.md) govern the engines, and
-errors self-diagnose via triage. Still pending: OS-level sandboxing (git/
-network) and the API/HTTP route (see `docs/BACKLOG.md`).
+(confined dir, minimal env, timeout): on macOS the shell runs **kernel-confined
+via seatbelt** (network denied, writes only inside the sandbox — git works),
+falling back to a tiny allowlist elsewhere; `ammo promote RUN_ID` applies
+sandboxed writes to the real target after a diff review. Per-system specs
+(preferences/limits/verification/context.md) govern the engines, and errors
+self-diagnose via triage. Still pending: Linux isolation and the API/HTTP
+route (see `docs/BACKLOG.md`).
 
 ## How to add things (smallest footprint first)
 
