@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 SEATBELT = "seatbelt"
+BWRAP = "bwrap"
 
 # never runnable, even under OS isolation
 ESCALATION_COMMANDS = {"sudo", "su", "doas"}
@@ -30,6 +31,8 @@ def detect_isolation(which: Callable[[str], Optional[str]] = shutil.which,
     """Best available OS-level isolation mechanism on this machine."""
     if platform == "darwin" and which("sandbox-exec"):
         return SEATBELT
+    if platform.startswith("linux") and which("bwrap"):
+        return BWRAP
     return None
 
 
@@ -53,4 +56,13 @@ def wrap_command(cmd: List[str], workdir: Path,
     """Wrap `cmd` so the OS confines it; passthrough when no isolation."""
     if isolation == SEATBELT:
         return ["sandbox-exec", "-p", seatbelt_profile(workdir)] + list(cmd)
+    if isolation == BWRAP:
+        # bubblewrap: read-only root, writable sandbox dir, fresh /dev and
+        # /tmp, and an unshared network namespace (= network denied).
+        # NOTE: shaped from bubblewrap docs; not yet verified on a real Linux
+        # machine (this repo develops on macOS) — see docs/BACKLOG.md.
+        path = str(Path(workdir).resolve())
+        return ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
+                "--tmpfs", "/tmp", "--bind", path, path,
+                "--unshare-net", "--die-with-parent", "--"] + list(cmd)
     return list(cmd)

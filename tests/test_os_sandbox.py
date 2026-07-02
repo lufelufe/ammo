@@ -27,8 +27,8 @@ def test_detection_is_platform_and_binary_gated():
     assert detect_isolation(which=lambda c: "/usr/bin/sandbox-exec",
                             platform="darwin") == SEATBELT
     assert detect_isolation(which=lambda c: None, platform="darwin") is None
-    assert detect_isolation(which=lambda c: "/usr/bin/sandbox-exec",
-                            platform="linux") is None
+    only_seatbelt = lambda c: "/usr/bin/sandbox-exec" if c == "sandbox-exec" else None
+    assert detect_isolation(which=only_seatbelt, platform="linux") is None
 
 
 def test_profile_confines_writes_and_denies_network(tmp_path):
@@ -129,3 +129,21 @@ def test_executor_shell_runs_git_under_isolation(tmp_path):
                                                 reason="init repo")])
     assert evidence.ok, evidence.detail
     assert (tmp_path / "sb" / ".git").is_dir()
+
+
+# --- linux (bwrap) — unit-level only; behavioral verification needs a Linux box
+
+def test_bwrap_detection():
+    assert detect_isolation(which=lambda c: "/usr/bin/bwrap",
+                            platform="linux") == "bwrap"
+    assert detect_isolation(which=lambda c: None, platform="linux") is None
+
+
+def test_bwrap_wrap_shape(tmp_path):
+    wrapped = wrap_command(["git", "init"], tmp_path, "bwrap")
+    assert wrapped[0] == "bwrap"
+    assert "--unshare-net" in wrapped                 # network denied
+    joined = " ".join(wrapped)
+    assert f"--bind {tmp_path.resolve()} {tmp_path.resolve()}" in joined
+    assert wrapped[-2:] == ["git", "init"]
+    assert wrapped.index("--ro-bind") < wrapped.index("--bind")  # root ro, sandbox rw
