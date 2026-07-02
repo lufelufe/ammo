@@ -133,3 +133,38 @@ def test_cli_plan_team(monkeypatch, capsys):
     data = json.loads(out)
     assert data["selected_system"] == "coding"
     assert data["selected_team"][1] == {"role": "builder", "model": "codex_builder"}
+
+
+# --- primary model anchors the lead seat (summon config wiring) ----------------
+
+def test_qualified_primary_breaks_the_lead_seat_tie(graph, analyzer):
+    # researcher seat is a genuine static tie (claude_a vs qwen, both 7):
+    # the primary anchor decides it.
+    task = analyzer.analyze("이 주제 자료 조사해줘")
+    default = TeamFormer(graph).form(task)
+    anchored = TeamFormer(graph, primary="qwen_planner_mock").form(task)
+    assert default.selected_team[0].model == "claude_a_planner"   # tie -> lexical
+    assert anchored.selected_team[0].model == "qwen_planner_mock" # tie -> primary
+    assert any("primary model (summoning host)" in n for n in anchored.notes)
+
+
+def test_primary_cannot_dethrone_a_clear_static_winner(graph, analyzer):
+    # coding planner seat: claude_a leads qwen by 2 (> the 1.5 anchor bonus)
+    task = analyzer.analyze("이 python repo 버그 고쳐줘")
+    plan = TeamFormer(graph, primary="qwen_planner_mock").form(task)
+    assert plan.selected_team[0].model == "claude_a_planner"
+
+
+def test_unqualified_primary_has_no_effect(graph, analyzer):
+    task = analyzer.analyze("이 주제 자료 조사해줘")
+    plan = TeamFormer(graph, primary="kimi_coder_mock").form(task)  # no researcher fit
+    assert plan.selected_team[0].model == "claude_a_planner"
+    assert not any("primary model" in n for n in plan.notes)
+
+
+def test_primary_only_affects_lead_not_other_seats(graph, analyzer):
+    task = analyzer.analyze("이 python repo 버그 고쳐줘")
+    plan = TeamFormer(graph, primary="kimi_coder_mock").form(task)   # builder-fit model
+    # kimi qualifies for builder, not the lead planner seat -> nothing changes
+    assert plan.selected_team[0].model == "claude_a_planner"
+    assert plan.selected_team[1].model == "codex_builder"

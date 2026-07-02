@@ -33,11 +33,14 @@ OBJECTIVES = ("balanced", "performance", "cost", "speed")
 
 class TeamFormer:
     def __init__(self, graph: CapabilityGraph, memory: Optional[ModelMemory] = None,
-                 binding=None, objective: str = "balanced"):
+                 binding=None, objective: str = "balanced",
+                 primary: Optional[str] = None):
         self.graph = graph
         self.memory = memory
         self.binding = binding  # optional per-system Binding (constrains selection)
         self.objective = objective if objective in OBJECTIVES else "balanced"
+        # the summoning host's model (ammo.config.yaml) anchors the LEAD seat
+        self.primary = primary
 
     # -- public -------------------------------------------------------------
 
@@ -86,8 +89,10 @@ class TeamFormer:
         used: Set[str] = set()
         team: List[TeamMember] = []
         notes: List[str] = []
+        lead = positions[0] if positions else None
         for position in positions:
-            model_id, note = self._pick_model(position, task, used)
+            model_id, note = self._pick_model(position, task, used,
+                                              is_lead=(position == lead))
             team.append(TeamMember(role=position, model=model_id))
             used.add(model_id)
             if note:
@@ -142,7 +147,8 @@ class TeamFormer:
                 return restricted
         return nodes
 
-    def _pick_model(self, position: str, task: TaskVector, used: Set[str]) -> Tuple[str, Optional[str]]:
+    def _pick_model(self, position: str, task: TaskVector, used: Set[str],
+                    is_lead: bool = False) -> Tuple[str, Optional[str]]:
         if position in tpl.FIXED_MODELS:
             return tpl.FIXED_MODELS[position], None
 
@@ -171,7 +177,13 @@ class TeamFormer:
                 memory_bonus, reasons = self.memory.bonus(
                     node.id, position, self._memory_tag(task), objective=self.objective
                 )
-            final.append((base + memory_bonus, node.id, reasons))
+            # primary anchors the lead seat — but only when qualified for it,
+            # and weaker than a capability match (+3), so it's a tie-breaker.
+            primary_bonus = 0.0
+            if is_lead and qualified and node.id == self.primary:
+                primary_bonus = 1.5
+                reasons = list(reasons) + ["primary model (summoning host)"]
+            final.append((base + memory_bonus + primary_bonus, node.id, reasons))
 
         if not final:
             return "unassigned", None
@@ -182,7 +194,7 @@ class TeamFormer:
         picked_score, picked_id, picked_reasons = final[0]
 
         note: Optional[str] = None
-        if self.memory and picked_reasons:
+        if picked_reasons:
             if picked_id != static_pick:
                 note = f"{position}: {picked_id} over {static_pick} — {'; '.join(picked_reasons)}"
             else:

@@ -399,6 +399,14 @@ def _cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_primary(root):
+    """The summoning host's model from ammo.config.yaml (None if unset)."""
+    from ammo.config import load_config
+
+    config = load_config(root)
+    return config.primary_model if config else None
+
+
 def _resolve_objective(root, args) -> str:
     """CLI flag wins; else the configured default; else balanced."""
     flag = getattr(args, "optimize", None)
@@ -886,7 +894,7 @@ def _cmd_plan_team(args: argparse.Namespace) -> int:
     task = TaskAnalyzer().analyze(args.text)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
-        objective=_resolve_objective(root, args),
+        objective=_resolve_objective(root, args), primary=_load_primary(root),
     ).form(task)
     print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2))
     return 0
@@ -905,7 +913,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     task = TaskAnalyzer().analyze(args.text)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
-        objective=_resolve_objective(root, args),
+        objective=_resolve_objective(root, args), primary=_load_primary(root),
     ).form(task)
 
     if args.real:
