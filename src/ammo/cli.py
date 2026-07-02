@@ -63,6 +63,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     version_parser.set_defaults(func=_cmd_version)
 
+    start_parser = subparsers.add_parser(
+        "start",
+        help="Summon AMMO: first-run setup wizard, or the ready summary if configured.",
+    )
+    start_parser.add_argument("--host", help="Summoning environment id (e.g. claude-code, codex).")
+    start_parser.add_argument("--yes", action="store_true",
+                              help="Non-interactive: accept safe defaults.")
+    start_parser.add_argument("--reconfigure", action="store_true",
+                              help="Redo setup even if already configured.")
+    start_parser.set_defaults(func=_cmd_start)
+
+    status_parser = subparsers.add_parser(
+        "status", help="One-screen summary of host, models, systems, and memory.",
+    )
+    status_parser.set_defaults(func=_cmd_status)
+
     doctor_parser = subparsers.add_parser(
         "doctor",
         help="Check that the AMMO root structure is healthy.",
@@ -131,8 +147,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_parser.add_argument(
         "--optimize", choices=["balanced", "performance", "cost", "speed"],
-        default="balanced",
-        help="Objective for team selection (default: balanced).",
+        default=None,
+        help="Objective for team selection (default: configured value or balanced).",
     )
     plan_parser.set_defaults(func=_cmd_plan_team)
 
@@ -175,8 +191,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--optimize", choices=["balanced", "performance", "cost", "speed"],
-        default="balanced",
-        help="Objective for team selection (default: balanced).",
+        default=None,
+        help="Objective for team selection (default: configured value or balanced).",
     )
     run_parser.add_argument("text", metavar="TEXT", help="The request to run.")
     run_parser.set_defaults(func=_cmd_run)
@@ -343,6 +359,33 @@ def _cmd_eval(args: argparse.Namespace) -> int:
 def _cmd_version(_args: argparse.Namespace) -> int:
     print(f"ammo {__version__}")
     return 0
+
+
+def _cmd_start(args: argparse.Namespace) -> int:
+    from ammo.bootstrap import run_start
+
+    return run_start(
+        find_ammo_root(), args.host,
+        reconfigure=args.reconfigure, assume_yes=args.yes,
+    )
+
+
+def _cmd_status(_args: argparse.Namespace) -> int:
+    from ammo.bootstrap import build_status
+
+    print(build_status(find_ammo_root()))
+    return 0
+
+
+def _resolve_objective(root, args) -> str:
+    """CLI flag wins; else the configured default; else balanced."""
+    flag = getattr(args, "optimize", None)
+    if flag:
+        return flag
+    from ammo.config import load_config
+
+    config = load_config(root)
+    return config.default_objective if config else "balanced"
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -798,7 +841,7 @@ def _cmd_plan_team(args: argparse.Namespace) -> int:
     task = TaskAnalyzer().analyze(args.text)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
-        objective=getattr(args, "optimize", "balanced"),
+        objective=_resolve_objective(root, args),
     ).form(task)
     print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2))
     return 0
@@ -817,7 +860,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     task = TaskAnalyzer().analyze(args.text)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
-        objective=getattr(args, "optimize", "balanced"),
+        objective=_resolve_objective(root, args),
     ).form(task)
 
     if args.real:

@@ -23,6 +23,15 @@ assistant. Claude Code, other agents, and humans should all follow this.
 9. Do not destructively move existing personal/investment folders. If importing
    is needed, create a safe copy or ask for the source path.
 
+## Summon ("ammo")
+
+When the user says **"ammo"** (bare, as a wake word), run
+`python -m ammo start --host <your-host-id>` (`claude-code`, `codex`, …) and
+show its output. First summon = a 4-step setup wizard; later summons = the
+ready summary. Do not auto-connect workspaces or bind models on the user's
+behalf — those grant permissions and stay explicit (`ammo connect`,
+`ammo bind`). Protocol: `docs/SUMMON.md`.
+
 ## Kernel loop → where each stage lives
 
 ```
@@ -31,6 +40,7 @@ understand → capability graph → form team → (mock) execute → confidence 
 
 | Stage | Module | CLI |
 |-------|--------|-----|
+| Summon / bootstrap | `src/ammo/bootstrap.py`, `src/ammo/config.py` | `start`, `status` |
 | Task understanding | `src/ammo/kernel/task_understanding/` | `analyze` |
 | Capability graph | `src/ammo/kernel/capability_graph/` | `list-models`, `score-models` |
 | Team formation | `src/ammo/kernel/team_formation/` | `plan-team` |
@@ -130,5 +140,6 @@ API/HTTP route, and spec→engine wiring (see `docs/BACKLOG.md`).
 - `docs/SYSTEM_PACK_SPEC.md` — the `.ammo/` system-pack contract.
 - `docs/MODEL_ADAPTER_SPEC.md` — the adapter contract.
 - `docs/HERMES_INTEGRATION.md` — what AMMO adopts/rejects from hermes-agent.
+- `docs/SUMMON.md` — the "ammo" summon protocol (boot sequence, per-host shims).
 - `docs/MEMORY_DREAM.md` — memory-consolidation playbook (layers, 4 steps, checklist).
 - `docs/ROADMAP.md` — phases + delivery log (status). `docs/BACKLOG.md` — deferred risks/decisions.

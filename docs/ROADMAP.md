@@ -130,6 +130,16 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery M18 — Summon protocol & bootstrap** *(the entry ritual)*. The
+  summon word is **"ammo"**, identical in every environment (`docs/SUMMON.md`;
+  the auto-loaded `AGENTS.md` is the universal agent shim, passing
+  `--host <id>`). `ammo start` runs a 4-step propose-don't-interrogate wizard on
+  first summon — the summoning host anchors the **primary model** (Claude Code →
+  claude, Codex → codex), detected providers propose the model set, permission
+  steps (connect/bind) stay explicit, and the default `--optimize` objective is
+  persisted to machine-local `ammo.config.yaml` (git-ignored) which
+  `run`/`plan-team` now honor. Repeat summons skip setup and print the ready
+  summary (`ammo status`); `--reconfigure` redoes it.
 - **Delivery — Docs dream pass 1** *(2026-07-02; per `docs/MEMORY_DREAM.md`)*.
   Consolidated documentation memory: `MODEL_ADAPTER_SPEC.md` rewritten to
   implemented reality (contract/adapters/providers, was M0 "not yet

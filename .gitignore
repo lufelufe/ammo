@@ -69,6 +69,9 @@ ENV/
 # Reference material (studied, not built) — e.g. vendored upstream repos
 ref/
 
+# Machine-local AMMO config (written by `ammo start`; host/primary/objective)
+ammo.config.yaml
+
 # Claude Code local settings (machine-specific)
 .claude/
 
