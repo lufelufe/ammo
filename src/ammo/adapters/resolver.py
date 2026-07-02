@@ -30,10 +30,11 @@ class RealAdapterFactory:
     """Callable ``model_id -> BaseModelAdapter`` for real execution."""
 
     def __init__(self, root=None, statuses=None, runner: Optional[Runner] = None,
-                 allow_paid: bool = False):
+                 allow_paid: bool = False, transport=None):
         from ammo.providers import DEFAULT_CATALOG, AvailabilityDetector, select_models
 
         self._runner = runner
+        self._transport = transport  # injectable HTTP transport (offline tests)
         self.statuses = (
             statuses if statuses is not None
             else AvailabilityDetector().detect_all(DEFAULT_CATALOG)
@@ -52,7 +53,14 @@ class RealAdapterFactory:
             self.resolutions[model_id] = ("real", provider_id)
             return CommandAdapter(model_id, command, self._runner,
                                   parser=PARSERS.get(profile.parser))
-        # unavailable, or provider has no command invocation (e.g. API) -> mock
+        if profile is not None and profile.api_url:
+            from ammo.adapters.http_adapter import HttpAdapter
+
+            # paid API route (only reachable when allow_paid selected it and
+            # the env var is present); the key itself is read at call time
+            self.resolutions[model_id] = ("real", provider_id)
+            return HttpAdapter(model_id, profile, transport=self._transport)
+        # unavailable -> mock
         self.resolutions[model_id] = ("mock", provider_id)
         return MockAdapter(model_id)
 

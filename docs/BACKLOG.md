@@ -100,9 +100,12 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   - `ammo promote` flattens absolute write paths to basenames (mirrors the
     sandbox write rule) — relative-path fidelity for nested targets relies on
     workers requesting relative paths.
-- **API/HTTP route deferred**: real exec is command-based (subscription CLI /
-  local). Paid API models have no command invoke → they fall back to mock. A
-  proper HTTP adapter (still secret-free via env) is a separate piece.
+- **API/HTTP route shipped (offline-tested)** — not yet verified against a
+  live key (none on this machine): first `run --real --allow-paid` with a real
+  ANTHROPIC_API_KEY/OPENAI_API_KEY should be watched. OpenAI vendor model name
+  in the profile (`gpt-5`) is editable data — match it to the actual plan.
+  Pricing labels are per-model, so a subscription-priced model reached via the
+  paid API is still labeled `subscription` in the cost report.
 - Model ids in the provider catalog are the mock ids; map them to real model
   names when adapters are finalized.
 

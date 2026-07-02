@@ -66,8 +66,9 @@ via seatbelt** (network denied, writes only inside the sandbox — git works),
 falling back to a tiny allowlist elsewhere; `ammo promote RUN_ID` applies
 sandboxed writes to the real target after a diff review. Per-system specs
 (preferences/limits/verification/context.md) govern the engines, and errors
-self-diagnose via triage. Still pending: Linux isolation and the API/HTTP
-route (see `docs/BACKLOG.md`).
+self-diagnose via triage. Paid API models run through `HttpAdapter`
+(`--allow-paid`; key read from env at call time, never stored). Still pending:
+Linux isolation (see `docs/BACKLOG.md`).
 
 ## How to add things (smallest footprint first)
 

@@ -31,6 +31,10 @@ class ProviderProfile:
     models: List[str] = field(default_factory=list)
     model_args: dict = field(default_factory=dict)  # model_id -> extra CLI args
     cost: str = "included"                     # included (cli/local) | paid (api)
+    # api providers: HTTP route (key read from env at CALL time, never stored)
+    api_url: Optional[str] = None
+    api_format: Optional[str] = None           # anthropic | openai
+    api_models: dict = field(default_factory=dict)  # node id -> vendor model name
 
 
 @dataclass
@@ -107,10 +111,24 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     ProviderProfile(
         "anthropic-api", API, "Anthropic API",
         env_var="ANTHROPIC_API_KEY",
-        models=["claude_a_planner", "claude_b_critic"], cost="paid",
+        models=["claude_a_planner", "claude_b_critic",
+                "claude_haiku_fast", "claude_sonnet_worker"],
+        cost="paid",
+        api_url="https://api.anthropic.com/v1/messages",
+        api_format="anthropic",
+        api_models={
+            "claude_a_planner": "claude-opus-4-8",
+            "claude_b_critic": "claude-opus-4-8",
+            "claude_haiku_fast": "claude-haiku-4-5",
+            "claude_sonnet_worker": "claude-sonnet-5",
+        },
     ),
     ProviderProfile(
         "openai-api", API, "OpenAI API",
         env_var="OPENAI_API_KEY", models=["codex_builder"], cost="paid",
+        api_url="https://api.openai.com/v1/chat/completions",
+        api_format="openai",
+        # vendor model name is editable data — match it to your plan
+        api_models={"codex_builder": "gpt-5"},
     ),
 ]

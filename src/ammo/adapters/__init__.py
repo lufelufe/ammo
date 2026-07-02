@@ -15,6 +15,7 @@ from ammo.adapters.contract import (
     ToolRequest,
     Usage,
 )
+from ammo.adapters.http_adapter import HttpAdapter
 from ammo.adapters.mock_adapter import MockAdapter
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "Evidence",
     "ToolRequest",
     "Usage",
+    "HttpAdapter",
     "MockAdapter",
     "CommandAdapter",
     "RealAdapterFactory",

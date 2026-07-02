@@ -31,7 +31,7 @@ asked (rule 2).
 | 6     | Confidence Engine             | Quantify trust; decide escalate/accept.                        | 🟡 v0 (delivery M9) |
 | 7     | Memory Feedback               | Persist outcomes; reshape future team formation.               | 🟡 v0 (delivery M10) |
 | 8     | System connection (universal) | Connect ANY directory as a pack (mount + scoped permissions).   | 🟡 v0 (delivery M12) |
-| 9     | Real adapters                 | Claude Code ×2 + real Codex adapter (call authenticated CLIs).  | 🟡 v0.5 (M14 + real exec) |
+| 9     | Real adapters                 | Authenticated CLIs (claude/codex, multi-model) + paid API HTTP route. | ✅ v1 |
 | 10    | Model pool                    | Gorgon Halo / OSS model pool.                                  | planned |
 
 ## Milestone 0 — Bootstrap (done)
@@ -130,6 +130,15 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — API/HTTP adapter (the paid route).** `HttpAdapter` reaches
+  models through the Anthropic Messages API or OpenAI chat API using stdlib
+  urllib (no new deps). Rule 4 is structural: the adapter holds only the env
+  var NAME and reads the key inside execute() at call time — nothing secret on
+  the object or in artifacts. Engages only under `--allow-paid` and only when
+  no no-extra-cost route serves the model; real response usage becomes
+  `estimated=False` and is priced as actual spend; API errors surface as
+  retryable failure markers. Transport is injectable, so the whole route tests
+  offline. Also updates the phase table: Phase 9 (real adapters) is now v1.
 - **Delivery — OS-level isolation (macOS seatbelt).** With `sandbox-exec`
   available, `--execute-tools` shell commands run **kernel-confined**: network
   denied, writes only inside the sandbox dir (`/dev` excepted), HOME/TMPDIR

@@ -101,7 +101,8 @@ class Runner:
     @staticmethod
     def _failed(response: AdapterResponse) -> bool:
         text = (response.output or "").strip()
-        return not text or text.startswith("(command exited")
+        return (not text or text.startswith("(command exited")
+                or text.startswith("(api error"))
 
     @staticmethod
     def _attach_verdict_evidence(role: str, response: AdapterResponse) -> None:
