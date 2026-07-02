@@ -177,3 +177,65 @@ def test_cli_run_stores_confidence_even_without_flag(ammo_root, capsys):
     )
     assert summary["confidence"] is not None
     assert (ammo_root / "runtime" / "runs" / run_id / "confidence_report.json").is_file()
+
+
+# --- tool outcomes feed the score (denials/failures wiring) -------------------
+
+def _tool_base():
+    task = mk_task(domain="coding", risk="low")
+    plan = mk_plan(["builder"])
+    return task, plan
+
+
+def test_tool_denial_lowers_confidence():
+    task, plan = _tool_base()
+    clean = [mk_resp("builder", [Evidence("diff", "diff", ok=True)])]
+    denied = [mk_resp("builder", [Evidence("diff", "diff", ok=True),
+                                  Evidence("tool", "fs.write denied", ok=False)])]
+    base = ENGINE.assess(task, plan, clean, mode="real")
+    hit = ENGINE.assess(task, plan, denied, mode="real")
+    assert hit.confidence_score < base.confidence_score
+    assert any("tool denied — fs.write denied" in r for r in hit.reasons_negative)
+
+
+def test_tool_failure_lowers_confidence():
+    task, plan = _tool_base()
+    failed = [mk_resp("builder", [Evidence("diff", "diff", ok=True),
+                                  Evidence("shell", "shell.run blocked", ok=False)])]
+    clean = [mk_resp("builder", [Evidence("diff", "diff", ok=True)])]
+    assert (ENGINE.assess(task, plan, failed, mode="real").confidence_score
+            < ENGINE.assess(task, plan, clean, mode="real").confidence_score)
+
+
+def test_tool_penalty_is_capped_but_counted():
+    task, plan = _tool_base()
+    many = [mk_resp("builder", [Evidence("tool", f"t{i} denied", ok=False) for i in range(5)])]
+    report = ENGINE.assess(task, plan, many, mode="real")
+    penalties = [r for r in report.reasons_negative if r.startswith("tool denied")]
+    assert len(penalties) == 2                       # cap at 2 scored penalties
+    assert any("+3 more tool denial(s)" in r for r in report.reasons_negative)
+
+
+def test_successful_side_effect_execution_raises_confidence():
+    task, plan = _tool_base()
+    executed = [mk_resp("builder", [Evidence("diff", "diff", ok=True),
+                                    Evidence("fs_write", "mirrored to sandbox", ok=True)])]
+    clean = [mk_resp("builder", [Evidence("diff", "diff", ok=True)])]
+    hit = ENGINE.assess(task, plan, executed, mode="real")
+    assert hit.confidence_score > ENGINE.assess(task, plan, clean, mode="real").confidence_score
+    assert any("side-effecting tools executed" in r for r in hit.reasons_positive)
+
+
+def test_no_bonus_when_any_tool_failed():
+    task, plan = _tool_base()
+    mixed = [mk_resp("builder", [Evidence("fs_write", "ok", ok=True),
+                                 Evidence("shell", "blocked", ok=False)])]
+    report = ENGINE.assess(task, plan, mixed, mode="real")
+    assert not any("side-effecting tools executed" in r for r in report.reasons_positive)
+
+
+def test_next_action_points_at_tool_issues():
+    task, plan = _tool_base()
+    denied = [mk_resp("builder", [Evidence("tool", "fs.write denied", ok=False)])]
+    report = ENGINE.assess(task, plan, denied, mode="real")
+    assert "tool denial" in report.required_next_action

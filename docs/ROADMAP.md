@@ -130,6 +130,12 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — Tool outcomes feed confidence**. The Confidence Engine now
+  scores tool evidence: each denied tool (a member wanted a capability it never
+  got) and each failed execution lowers the score (−0.06 each, two scored per
+  kind with the rest counted), successful side-effecting execution raises it
+  (+0.05), and `required_next_action` points at unresolved tool issues. Closes
+  the loop: permission gate → Evidence → confidence → next action.
 - **Delivery — `ammo dream` (memory consolidation)** *(automates
   `docs/MEMORY_DREAM.md`'s quantitative pass)*. Dry-run by default, `--apply`
   backs the DB up first. Rebuilds `model_performance`/`team_synergy` from the

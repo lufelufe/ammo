@@ -105,8 +105,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
     needed before broadening it.
   - **Sandbox→real promotion**: `fs.write` mirrors into the sandbox; applying a
     sandboxed change to the real target (with diff review) is not implemented.
-  - Feed tool denials/failures into the Confidence Engine (recorded as Evidence
-    but do not yet change the score).
   - Confirm `.ammoignore` glob semantics against real trees; sandbox dirs under
     `runtime/sandbox/` have no GC/pruning.
 - **API/HTTP route deferred**: real exec is command-based (subscription CLI /

@@ -18,6 +18,7 @@ from ammo.kernel.team_formation.execution_plan import ExecutionPlan
 _CHECKER_ROLES = {"critic", "skeptic", "judge", "reviewer", "rollback_critic"}
 _BUILDER_ROLES = {"builder", "operator"}
 _REAL_TEST_KINDS = {"test_result", "tests"}
+_TOOL_EXEC_KINDS = {"fs_write", "shell", "file_read"}  # ToolExecutor evidence
 
 _BASE = 0.5
 
@@ -95,7 +96,30 @@ class ConfidenceEngine:
             for obj in open_objections[:3]:
                 neg.append(f"unresolved objection — {obj}")
 
-        # 6. risk
+        # 6. tool outcomes: a denied tool means a member wanted a capability it
+        # never got; a failed execution means claimed work didn't happen. Both
+        # make the output less trustworthy. Successful side-effecting execution
+        # is real evidence and raises trust slightly.
+        tool_denials = [ev for ev in all_evidence if ev.kind == "tool" and not ev.ok]
+        tool_failures = [ev for ev in all_evidence
+                         if ev.kind in _TOOL_EXEC_KINDS and not ev.ok]
+        for ev in tool_denials[:2]:
+            score -= 0.06
+            neg.append(f"tool denied — {ev.summary}")
+        if len(tool_denials) > 2:
+            neg.append(f"(+{len(tool_denials) - 2} more tool denial(s))")
+        for ev in tool_failures[:2]:
+            score -= 0.06
+            neg.append(f"tool failed — {ev.summary}")
+        if len(tool_failures) > 2:
+            neg.append(f"(+{len(tool_failures) - 2} more tool failure(s))")
+        if not tool_failures and any(
+            ev.kind in {"fs_write", "shell"} and ev.ok for ev in all_evidence
+        ):
+            score += 0.05
+            pos.append("side-effecting tools executed successfully")
+
+        # 7. risk
         if risk == "high":
             score -= 0.15
             neg.append("high-risk task lowers confidence")
@@ -103,12 +127,12 @@ class ConfidenceEngine:
             score -= 0.05
             neg.append("medium-risk task")
 
-        # 7. missing evidence
+        # 8. missing evidence
         if not all_evidence:
             score -= 0.10
             neg.append("no evidence produced")
 
-        # 8. mock execution (no real work happened)
+        # 9. mock execution (no real work happened)
         if mode == "mock":
             score -= 0.08
             neg.append("mock adapter only; no real execution")
@@ -119,14 +143,21 @@ class ConfidenceEngine:
             confidence_band=_band(score),
             reasons_positive=pos,
             reasons_negative=neg,
-            required_next_action=self._next_action(mode, open_objections, risk, score),
+            required_next_action=self._next_action(
+                mode, open_objections, risk, score,
+                tool_issues=len(tool_denials) + len(tool_failures),
+            ),
         )
 
-    def _next_action(self, mode: str, objections: List[str], risk: str, score: float) -> str:
+    def _next_action(self, mode: str, objections: List[str], risk: str, score: float,
+                     tool_issues: int = 0) -> str:
         if mode == "mock":
             return "require real execution before applying changes"
         if objections:
             return f"resolve {len(objections)} open objection(s) before proceeding"
+        if tool_issues:
+            return (f"resolve {tool_issues} tool denial(s)/failure(s) — grant the "
+                    "permission, fix the tool call, or re-plan without it")
         if risk == "high" and score < 0.75:
             return "add an independent critic and re-run before applying"
         if score < 0.5:
