@@ -21,6 +21,10 @@ POSITION_SPEC = {
     "triage": {"capability": "analysis", "role": "analyst"},
     "operator": {"capability": "coding", "role": "implementer"},
     "rollback_critic": {"capability": "review", "role": "critic"},
+    # registry-role names, so pack workflows.yaml stages resolve as positions
+    "analyst": {"capability": "analysis", "role": "analyst"},
+    "implementer": {"capability": "coding", "role": "implementer"},
+    "reviewer": {"capability": "review", "role": "reviewer"},
 }
 
 # positions that are infrastructure, not LLMs — resolved to a fixed id.

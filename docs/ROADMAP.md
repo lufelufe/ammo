@@ -130,6 +130,18 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — workflows.yaml stage routing.** A pack's declared workflows now
+  drive team formation: a workflow whose normalized id EXACTLY matches the
+  task's intent or a tag routes the team through its stages (stage roles
+  resolve as positions; unknown roles are skipped; a workflow with no usable
+  stage falls back). Routing order: preferences.default_template -> matching
+  workflow -> domain template — exact-match-only, so packs can't hijack
+  unrelated tasks. Workflow-routed teams inherit the domain template's tools
+  and risk controls (governance is a domain property), and the workflow's own
+  confidence_gate now gates acceptance/self-heal (limits.yaml still wins;
+  escalation falls back to routing.yaml's on_low_confidence). The eval suite
+  mirrors the CLI routing; personal briefing and investment cases now expect
+  their declared pipelines.
 - **Delivery — Deterministic epsilon exploration (annealed).** The advisor now
   schedules exploration as a FUNCTION of recorded history — no randomness, so
   identical memory yields identical decisions: every ~1/ε-th attempt in a tag

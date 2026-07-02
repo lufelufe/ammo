@@ -5,6 +5,6 @@ cases:
     input: "오늘 할 일 정리해줘"
     expect:
       system: personal
-      roles: [fast_worker]
+      roles: [analyst, synthesizer]   # routed by the pack's 'briefing' workflow
       tools: [web.search, web.fetch]
       confidence_max: medium

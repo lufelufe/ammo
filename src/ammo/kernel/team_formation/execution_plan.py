@@ -31,6 +31,8 @@ class ExecutionPlan:
     risk_controls: List[str] = field(default_factory=list)
     expected_outputs: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)  # e.g. memory-guided pick explanations
+    workflow: Optional[str] = None          # pack workflow id when stage-routed
+    workflow_gate: Optional[float] = None   # that workflow's confidence_gate
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -42,4 +44,6 @@ class ExecutionPlan:
             "risk_controls": self.risk_controls,
             "expected_outputs": self.expected_outputs,
             "notes": self.notes,
+            "workflow": self.workflow,
+            "workflow_gate": self.workflow_gate,
         }

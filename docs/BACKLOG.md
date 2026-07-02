@@ -165,10 +165,10 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   otherwise-English output — that is request data, not a UI label; revisit if a
   strict UI-language check is wanted.
 
-### Team Formation (Phase 4 v0)
-- Template selection is coarse (domain-driven; ops always → ops_incident,
-  coding high-risk vs standard by risk only). Real routing should also use pack
-  `workflows.yaml` stages + `confidence_gate` rather than hard-coded templates.
+### Team Formation (Phase 4 v0; workflow stage routing shipped)
+- Workflow matching is exact-id-vs-intent/tags only — no semantic matching, and
+  a pack can't yet declare per-workflow tools/risk controls (they inherit the
+  domain template's).
 - Team positions (planner/builder/critic/…) are a second role vocabulary on top
   of registry roles; `local_test_runner` is a synthetic infra id not in the
   graph. Consider unifying position→role mapping and registering infra runners.

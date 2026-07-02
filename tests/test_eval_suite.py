@@ -18,7 +18,8 @@ EVALS = REPO_ROOT / "evals"
 
 @pytest.fixture(scope="module")
 def suite():
-    return EvalSuite(TaskAnalyzer(systems=[]), CapabilityGraph.from_registry(root=REPO_ROOT))
+    return EvalSuite(TaskAnalyzer(systems=[]), CapabilityGraph.from_registry(root=REPO_ROOT),
+                     root=REPO_ROOT)   # root enables pack-workflow routing (mirrors the CLI)
 
 
 # --- cases load -------------------------------------------------------------

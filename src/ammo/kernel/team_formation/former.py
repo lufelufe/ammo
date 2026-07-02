@@ -38,7 +38,8 @@ class TeamFormer:
                  binding=None, objective: str = "balanced",
                  primary: Optional[str] = None,
                  preferences: Optional[dict] = None,
-                 limits: Optional[dict] = None):
+                 limits: Optional[dict] = None,
+                 workflows: Optional[list] = None):
         self.graph = graph
         self.memory = memory
         self.binding = binding  # optional per-system Binding (constrains selection)
@@ -48,14 +49,15 @@ class TeamFormer:
         # per-system optimization specs (.ammo/preferences.yaml, limits.yaml)
         self.preferences = preferences or {}
         self.limits = limits or {}
+        # pack workflows.yaml: declared stage pipelines that can route the team
+        self.workflows = workflows or []
 
     # -- public -------------------------------------------------------------
 
     def form(self, task: TaskVector, extra_roles: Optional[List[str]] = None) -> ExecutionPlan:
         """`extra_roles` lets an escalation (limits.yaml `add_role:X`) reinforce
         the team; they are appended AFTER the max_team_size cap on purpose."""
-        template = self._select_template(task)
-        positions = list(tpl.TEMPLATES[template])
+        template, positions, workflow_id, workflow_gate = self._route(task)
         if template == "coding_standard" and task.needs_tests:
             positions.append("test_runner")
 
@@ -92,9 +94,46 @@ class TeamFormer:
             risk_controls=self._risk_controls(template, task),
             expected_outputs=self._expected_outputs(template, task, roles),
             notes=notes,
+            workflow=workflow_id,
+            workflow_gate=workflow_gate,
         )
 
     # -- template selection -------------------------------------------------
+
+    def _route(self, task: TaskVector):
+        """(template_label, positions, workflow_id, workflow_gate).
+
+        Routing order: preferences.default_template (explicit override) ->
+        a pack workflow whose id matches the task's intent or a tag ->
+        the domain-driven hardcoded template.
+        """
+        override = self.preferences.get("default_template")
+        if override in tpl.TEMPLATES:
+            return override, list(tpl.TEMPLATES[override]), None, None
+
+        workflow = self._match_workflow(task)
+        if workflow is not None:
+            positions = [st.get("role") for st in workflow.get("stages") or []
+                         if st.get("role") in tpl.POSITION_SPEC
+                         or st.get("role") in tpl.FIXED_MODELS]
+            if positions:
+                return (f"workflow:{workflow.get('id')}", positions,
+                        workflow.get("id"), workflow.get("confidence_gate"))
+
+        template = self._select_template(task)
+        return template, list(tpl.TEMPLATES[template]), None, None
+
+    def _match_workflow(self, task: TaskVector):
+        """A workflow routes only on an EXACT normalized id match with the
+        task's intent or one of its tags — never fuzzily (a pack declaring
+        workflows must not hijack unrelated tasks)."""
+        wanted = {str(task.intent or "").replace("-", "_").lower()}
+        wanted |= {str(t).replace("-", "_").lower() for t in (task.tags or [])}
+        for workflow in self.workflows:
+            wf_id = str(workflow.get("id") or "").replace("-", "_").lower()
+            if wf_id and wf_id in wanted:
+                return workflow
+        return None
 
     def _select_template(self, task: TaskVector) -> str:
         # preferences.yaml: an explicit per-system template override wins
@@ -254,7 +293,16 @@ class TeamFormer:
 
     # -- derived plan fields ------------------------------------------------
 
+    def _lookup_template(self, template: str, task: TaskVector) -> str:
+        """Workflow-routed teams inherit the domain template's tools/risk
+        controls (domain governance is a property of the domain, not the
+        team shape)."""
+        if template.startswith("workflow:"):
+            return self._select_template(task)
+        return template
+
     def _tools(self, template: str, task: TaskVector, roles: List[str]) -> List[str]:
+        template = self._lookup_template(template, task)
         tools = set(task.required_tools) | set(tpl.TEMPLATE_TOOLS.get(template, []))
         if "test_runner" in roles:
             tools.add("shell.run")
@@ -263,6 +311,7 @@ class TeamFormer:
         return ordered
 
     def _risk_controls(self, template: str, task: TaskVector) -> List[str]:
+        template = self._lookup_template(template, task)
         controls = list(tpl.TEMPLATE_RISK_CONTROLS.get(template, []))
         if task.needs_tests and "require_tests" not in controls:
             controls.append("require_tests")

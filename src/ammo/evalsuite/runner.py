@@ -82,13 +82,27 @@ class EvalSuite:
         self.analyzer = analyzer or TaskAnalyzer(systems=[])
         self.graph = graph or CapabilityGraph.from_registry(root)
         self.memory = memory
+        self._root = root
+
+    def _workflows_for(self, task):
+        """Mirror the CLI: the candidate pack's workflows can route the team."""
+        system_id = task.candidate_systems[0] if task.candidate_systems else None
+        if not system_id or self._root is None:
+            return None
+        try:
+            from ammo.registry import SystemPackLoader
+
+            return SystemPackLoader(self._root).load(system_id).workflow_list
+        except Exception:
+            return None
 
     def run(self, cases: List[EvalCase]) -> SuiteReport:
         return SuiteReport([self.run_case(c) for c in cases])
 
     def run_case(self, case: EvalCase) -> CaseResult:
         task = self.analyzer.analyze(case.input)
-        plan = TeamFormer(self.graph, memory=self.memory).form(task)
+        plan = TeamFormer(self.graph, memory=self.memory,
+                          workflows=self._workflows_for(task)).form(task)
         result = Runner(lambda model_id: MockAdapter(model_id)).run(plan, task)
         report = ConfidenceEngine().assess(task, plan, result.responses, mode=result.mode)
 

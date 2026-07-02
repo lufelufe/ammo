@@ -3,13 +3,13 @@ cases:
     input: "NVDA 투자 분석 리포트 만들어줘"
     expect:
       system: personal   # investment is served by the personal pack
-      roles: [researcher, critic, judge]
+      roles: [analyst, critic, synthesizer]   # routed by 'investment-intel' workflow
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium
   - id: investment-rebalance-1
     input: "포트폴리오 리밸런싱 전략 검토해줘"
     expect:
       system: personal
-      roles: [researcher, critic, judge]
+      roles: [analyst, critic, synthesizer]   # routed by 'investment-intel' workflow
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium

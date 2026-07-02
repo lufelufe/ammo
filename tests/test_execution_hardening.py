@@ -205,7 +205,8 @@ def test_self_heal_escalates_once_on_gate_miss(heal_root, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "self-heal: escalated (+critic)" in out          # reinforced re-run happened
-    assert "team: fast_worker, critic" in out               # critic actually joined
+    # personal 'briefing' workflow routes the team; the critic joins on top
+    assert "team: analyst, synthesizer, critic" in out
     assert out.count("self-heal: escalated") == 1           # never loops
 
 

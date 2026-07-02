@@ -34,6 +34,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         objective=_resolve_objective(root, args), primary=_load_primary(root),
         preferences=pack.preferences if pack else None,
         limits=pack.limits if pack else None,
+        workflows=pack.workflow_list if pack else None,
     ).form(task)
 
     if args.real:
@@ -90,8 +91,16 @@ def _cmd_run(args: argparse.Namespace) -> int:
     healed_from = None
     healed_role = None
     heal_limits = (pack.limits or {}) if pack else {}
+    # gate precedence: limits.yaml (explicit optimization spec) -> the routed
+    # workflow's own confidence_gate; escalation falls back to routing.yaml
     heal_gate = heal_limits.get("confidence_gate")
-    heal_escalation = str(heal_limits.get("escalation") or "")
+    if heal_gate is None:
+        heal_gate = plan.workflow_gate
+    routing_escalation = ""
+    if pack:
+        routing_escalation = str(((pack.routing or {}).get("escalation") or {})
+                                 .get("on_low_confidence") or "")
+    heal_escalation = str(heal_limits.get("escalation") or routing_escalation)
     if (heal_gate is not None and report.confidence_score < float(heal_gate)
             and heal_escalation.startswith("add_role:")):
         extra = heal_escalation.split(":", 1)[1].strip()
@@ -103,6 +112,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 objective=_resolve_objective(root, args), primary=_load_primary(root),
                 preferences=pack.preferences if pack else None,
                 limits=pack.limits if pack else None,
+                workflows=pack.workflow_list if pack else None,
             ).form(task, extra_roles=[extra])
             plan.notes.append(
                 f"self-heal: confidence {healed_from} < gate {heal_gate} -> added {extra}"
@@ -183,10 +193,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
     for diagnosis in diagnose_run(result.responses, economics=economics,
                                   system_id=plan.selected_system, mode=result.mode):
         print(diagnosis.to_text())
-    # limits.yaml: the system's own acceptance threshold
+    # acceptance threshold: limits.yaml, else the routed workflow's gate
     gate = (pack.limits or {}).get("confidence_gate") if pack else None
+    if gate is None:
+        gate = plan.workflow_gate
     if gate is not None and report.confidence_score < float(gate):
-        escalation = (pack.limits or {}).get("escalation", "review")
+        escalation = ((pack.limits or {}).get("escalation") if pack else None)             or routing_escalation or "review"
         print(f"gate: below the system confidence_gate ({gate}) — escalation: {escalation}")
     print(f"final: {result.final_output}")
 
