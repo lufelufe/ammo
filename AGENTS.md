@@ -80,6 +80,9 @@ API/HTTP route, and spec→engine wiring (see `docs/BACKLOG.md`).
   genuine multi-way forks as questions, not silent defaults.
 - **No secrets, ever.** Providers detect *presence* (env var NAME, CLI login),
   never values; adapters call authenticated CLIs. AMMO holds no keys.
+- **Commits are logical units.** One reviewable, revertable concern per commit
+  (a milestone usually = one commit; docs-consolidation and risk fixes are their
+  own commits). Never push without an explicit user instruction.
 
 ## Boundaries (what must NOT depend on what)
 
