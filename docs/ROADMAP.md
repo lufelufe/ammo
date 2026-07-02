@@ -130,6 +130,15 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — Deterministic epsilon exploration (annealed).** The advisor now
+  schedules exploration as a FUNCTION of recorded history — no randomness, so
+  identical memory yields identical decisions: every ~1/ε-th attempt in a tag
+  is an exploration run (ε = 0.2 annealing with experience, half-life 20
+  attempts), on which candidates tried fewer times than the incumbent receive
+  a nudge deliberately above the advisory cap (qualified-only, so capability
+  gating holds). A stuck winner can now be dethroned on schedule and wins its
+  seat back by earning it; cold start never explores; plan notes show
+  "exploration run (ε=…, attempt N)".
 - **Delivery — API/HTTP adapter (the paid route).** `HttpAdapter` reaches
   models through the Anthropic Messages API or OpenAI chat API using stdlib
   urllib (no new deps). Rule 4 is structural: the adapter holds only the env

@@ -59,8 +59,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   `ammo eval --compare`) to chart improvement.
 
 ### Role dirs / per-system memory / exploration (M16)
-- Exploration is a static bonus to under-tried models; there's no epsilon
-  schedule or convergence tracking. Consider annealing explore over attempts.
 - Role workspaces live under `systems/<sys>/roles/` (gitignored). For a mounted
   (external) system, traces still land in-repo, not in the mounted dir — revisit
   if role data should live beside the source.
@@ -129,8 +127,9 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 
 ### Memory Feedback (Phase 7 — recording M10, guidance M11)
 - Loop is closed for team formation (per-model + synergy bonus). Still open:
-  - **Exploration**: v0 is pure exploit (deterministic). Add epsilon-exploration
-    so a stuck winner can be dethroned and alternatives discovered.
+  - Exploration ships as deterministic annealed epsilon-greedy; remaining:
+    per-SEAT schedules (currently per-tag) and convergence reporting in
+    `ammo efficiency`.
   - **Wholesale team recall** was intentionally NOT done (recall-as-per-slot
     instead). Revisit only if per-slot proves insufficient.
 - "success" is proxied by confidence >= 0.5 (mock). Needs real outcome +

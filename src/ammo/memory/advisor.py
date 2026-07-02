@@ -17,6 +17,16 @@ SYNERGY_WEIGHT = 1.0      # bonus for a model that held this role in a winning t
 ECONOMY_WEIGHT = 1.0      # objective=cost/speed: bias toward cheap/light models
 BONUS_CAP = 2.0           # hard cap; stays < capability match (+3)
 
+# Deterministic epsilon-greedy exploration (annealed). No randomness: whether a
+# run explores is a FUNCTION of recorded history (same memory -> same choice),
+# so runs stay reproducible. Every ~1/ε-th attempt in a tag, the least-tried
+# qualified candidate gets a nudge big enough to dethrone the incumbent.
+EPSILON_BASE = 0.2        # early exploration rate (n=0)
+EPSILON_HALF_LIFE = 20.0  # attempts until ε halves (annealing)
+EXPLORE_NUDGE = 3.0       # deliberately above BONUS_CAP: exploration must be
+                          # able to override the exploit choice (qualified-only,
+                          # so capability gating still holds)
+
 
 def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
@@ -84,6 +94,24 @@ class MemoryAdvisor:
         label = "cheap" if metric == "average_cost" else "light"
         return term, ([f"{label} in {tag} history"] if term >= 0.25 else [])
 
+    def _tag_attempts(self, tag: str) -> int:
+        return sum((s.get("attempts") or 0)
+                   for (m, t), s in self._model_stats.items() if t == tag)
+
+    def _max_tag_attempts(self, tag: str) -> int:
+        counts = [(s.get("attempts") or 0)
+                  for (m, t), s in self._model_stats.items() if t == tag]
+        return max(counts) if counts else 0
+
+    def exploration_state(self, tag: str):
+        """(active, epsilon, n): deterministic schedule — the (period-1)-th of
+        every ~1/ε attempts in this tag is an exploration run."""
+        n = self._tag_attempts(tag)
+        epsilon = EPSILON_BASE / (1 + n / EPSILON_HALF_LIFE)
+        period = max(1, round(1 / epsilon))
+        active = n > 0 and n % period == period - 1
+        return active, epsilon, n
+
     def bonus(self, model_id: str, role: str, tag: str,
               objective: str = "balanced") -> Tuple[float, List[str]]:
         """Return (bonus, reasons). Bounded to +/- BONUS_CAP.
@@ -125,4 +153,16 @@ class MemoryAdvisor:
             total += term
             reasons += why
 
-        return round(_clamp(total, -BONUS_CAP, BONUS_CAP), 3), reasons
+        total = _clamp(total, -BONUS_CAP, BONUS_CAP)
+
+        # epsilon exploration: on scheduled runs, candidates tried FEWER times
+        # than the incumbent (the tag's max) outbid it — the stuck winner
+        # itself never receives the nudge, so it can be dethroned
+        active, epsilon, n = self.exploration_state(tag)
+        if active and attempts < self._max_tag_attempts(tag):
+            total += EXPLORE_NUDGE
+            reasons.append(
+                f"exploration run (ε={epsilon:.2f}, attempt {n} in {tag}) — least-tried"
+            )
+
+        return round(total, 3), reasons
