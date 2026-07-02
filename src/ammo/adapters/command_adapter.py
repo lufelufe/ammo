@@ -27,10 +27,12 @@ def _build_prompt(request: AdapterRequest) -> str:
 
 class CommandAdapter(BaseModelAdapter):
     def __init__(self, model_id: str, command: List[str], runner: Optional[Runner] = None,
-                 parser=None):
+                 parser=None, env: dict = None):
         super().__init__(model_id)
         self._command = list(command)
         self._parser = parser  # optional (stdout) -> (clean_text, Usage|None)
+        self._env = env or {}  # provider env overrides (e.g. a second account's
+                               # CLAUDE_CONFIG_DIR) — paths only, never secrets
         if runner is not None:
             self._run = runner
         else:
@@ -47,7 +49,13 @@ class CommandAdapter(BaseModelAdapter):
 
     def execute(self, request: AdapterRequest) -> AdapterResponse:
         prompt = _build_prompt(request)
-        code, output = self._run(self._command, stdin=prompt)
+        if self._env:
+            from ammo.providers.detector import expand_env
+
+            code, output = self._run(self._command, stdin=prompt,
+                                     env=expand_env(self._env))
+        else:
+            code, output = self._run(self._command, stdin=prompt)
         text = output.strip()
         if code != 0:
             text = text or f"(command exited {code})"

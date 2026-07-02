@@ -52,7 +52,8 @@ class RealAdapterFactory:
 
             self.resolutions[model_id] = ("real", provider_id)
             return CommandAdapter(model_id, command, self._runner,
-                                  parser=PARSERS.get(profile.parser))
+                                  parser=PARSERS.get(profile.parser),
+                                  env=getattr(profile, "env", None))
         if profile is not None and profile.api_url:
             from ammo.adapters.http_adapter import HttpAdapter
 

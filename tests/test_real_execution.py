@@ -116,8 +116,13 @@ def test_cli_run_real_offline(ammo_root, monkeypatch, capsys):
     # make providers detectable + invocation deterministic without real CLIs
     import shutil as _sh
     monkeypatch.setattr(_sh, "which", lambda c: f"/bin/{c}" if c == "claude" else None)
-    monkeypatch.setattr("ammo.providers.detector.default_runner",
-                        lambda cmd, stdin="": (0, f"[{cmd[0]}] ok"))
+    monkeypatch.setattr(
+        "ammo.providers.detector.default_runner",
+        lambda cmd, stdin="", env=None: (
+            (0, '{"loggedIn": true}') if "status" in cmd
+            else (0, f"[{cmd[0]}] ok")
+        ),
+    )
     code = cli.main(["run", "--real", "이 python repo 버그 고쳐줘"])
     out = capsys.readouterr().out
     assert code == 0

@@ -23,8 +23,10 @@ def _detector(installed=(), authed=True, env=None, local_out=""):
         which=lambda c: f"/bin/{c}" if c in installed else None,
         # auth checks are `claude auth status` / `codex login status` (verified
         # live); the local list command ends in "list".
-        runner=lambda cmd, stdin="": (
-            (0 if authed else 1, "") if "status" in cmd
+        runner=lambda cmd, stdin="", env=None: (
+            # auth probes now also require the expected marker in stdout
+            ((0, '{"loggedIn": true} Logged in') if authed else (1, ""))
+            if "status" in cmd
             else (0, local_out) if cmd[-1] == "list"
             else (0, "")
         ),
@@ -135,3 +137,50 @@ def test_model_args_extend_the_invoke_command():
     default_cmd = _invoke_command(claude, "claude_a_planner")
     assert haiku_cmd[-2:] == ["--model", "haiku"]      # per-model CLI mapping
     assert "--model" not in default_cmd                # default seat untouched
+
+
+# --- second Claude account slot (CLAUDE_CONFIG_DIR) --------------------------------
+
+CLAUDE_B = next(p for p in DEFAULT_CATALOG if p.id == "claude-code-b")
+
+
+def _two_account_detector(b_logged_in):
+    """Fake: account A always logged in; account B per flag (keyed on env)."""
+    def runner(cmd, stdin="", env=None):
+        if "status" in cmd:
+            is_b = bool(env and "claude-b" in str(env.get("CLAUDE_CONFIG_DIR", "")))
+            ok = b_logged_in if is_b else True
+            return (0, '{"loggedIn": true}') if ok else (0, '{"loggedIn": false}')
+        return (0, "")
+    return AvailabilityDetector(which=lambda c: f"/bin/{c}", runner=runner, environ={})
+
+
+def test_account_b_absent_falls_back_to_primary():
+    statuses = _two_account_detector(b_logged_in=False).detect_all(DEFAULT_CATALOG)
+    by_id = {s.profile.id: s for s in statuses}
+    assert by_id["claude-code-b"].available is False       # loggedIn:false caught
+    assert by_id["claude-code"].available is True
+    usable = select_models(statuses)
+    assert usable["claude_b_critic"] == "claude-code"      # graceful fallback
+
+
+def test_account_b_present_owns_its_model():
+    statuses = _two_account_detector(b_logged_in=True).detect_all(DEFAULT_CATALOG)
+    usable = select_models(statuses)
+    assert usable["claude_b_critic"] == "claude-code-b"    # true 2-account team
+    assert usable["claude_a_planner"] == "claude-code"     # A keeps the rest
+
+
+def test_adapter_invokes_with_the_account_env(monkeypatch):
+    from ammo.adapters import CommandAdapter, AdapterRequest
+
+    seen = {}
+    def runner(cmd, stdin="", env=None):
+        seen["env"] = env
+        return 0, '{"result": "OK", "usage": {"input_tokens": 1, "output_tokens": 1}}'
+    monkeypatch.setenv("HOME", "/Users/tester")
+    adapter = CommandAdapter("claude_b_critic", ["claude", "-p"], runner=runner,
+                             env={"CLAUDE_CONFIG_DIR": "~/.claude-b"})
+    adapter.execute(AdapterRequest(role="critic", model="claude_b_critic", task_input="x"))
+    assert seen["env"]["CLAUDE_CONFIG_DIR"] == "/Users/tester/.claude-b"  # ~ expanded
+    assert "PATH" in seen["env"]                            # os.environ preserved

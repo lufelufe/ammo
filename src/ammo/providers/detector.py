@@ -24,12 +24,24 @@ from ammo.providers.profile import (
 Runner = Callable[..., Tuple[int, str]]
 
 
-def default_runner(cmd: List[str], stdin: str = "", timeout: int = 180) -> Tuple[int, str]:
+def expand_env(overrides: dict) -> dict:
+    """os.environ + provider overrides (values get ~ and $VAR expansion)."""
+    import os
+
+    merged = dict(os.environ)
+    for key, value in (overrides or {}).items():
+        merged[key] = os.path.expandvars(os.path.expanduser(str(value)))
+    return merged
+
+
+def default_runner(cmd: List[str], stdin: str = "", timeout: int = 180,
+                   env: dict = None) -> Tuple[int, str]:
     # 180s default: verified real invocations (claude -p) can take ~20s on a
     # trivial prompt and much longer on real work; probes return in <1s anyway.
     try:
         proc = subprocess.run(
-            cmd, input=stdin, capture_output=True, text=True, timeout=timeout
+            cmd, input=stdin, capture_output=True, text=True, timeout=timeout,
+            env=env,
         )
         return proc.returncode, proc.stdout
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
@@ -75,8 +87,16 @@ class AvailabilityDetector:
         if not self._which(profile.command):
             return ProviderStatus(profile, False, "not installed", [])
         if profile.auth_check:
-            code, _ = self._run(profile.auth_check)
-            if code != 0:
+            if profile.env:
+                code, out = self._run(profile.auth_check, env=expand_env(profile.env))
+            else:
+                code, out = self._run(profile.auth_check)
+            # exit code alone is not proof: `claude auth status` exits 0 even
+            # when logged out (verified live) — require the expected marker too
+            authed = code == 0 and (
+                profile.auth_expect is None or profile.auth_expect in (out or "")
+            )
+            if not authed:
                 return ProviderStatus(profile, False, "installed but not authenticated", [])
             return ProviderStatus(profile, True, "authenticated", list(profile.models))
         return ProviderStatus(profile, True, "installed", list(profile.models))

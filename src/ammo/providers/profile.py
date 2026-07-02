@@ -23,7 +23,13 @@ class ProviderProfile:
     kind: str                                  # subscription_cli | api | local
     display_name: str
     command: Optional[str] = None              # CLI command name (cli/local)
-    auth_check: Optional[List[str]] = None     # command whose exit 0 == authenticated
+    auth_check: Optional[List[str]] = None     # command probing authentication
+    auth_expect: Optional[str] = None          # substring stdout must contain
+                                               # (claude auth status exits 0 even
+                                               # logged OUT — verified live)
+    env: dict = field(default_factory=dict)    # per-provider env (paths only, no
+                                               # secrets), e.g. CLAUDE_CONFIG_DIR
+                                               # for a SECOND account slot
     list_command: Optional[List[str]] = None   # local: command that lists models
     env_var: Optional[str] = None              # api: env var NAME (presence only)
     invoke: Optional[List[str]] = None         # command to run a prompt ({model} placeholder)
@@ -68,6 +74,30 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     #          read as the literal prompt, so the prompt goes via stdin only.
     # Structured-output invocations verified live 2026-07-02: claude JSON gives
     # result + usage + total_cost_usd; codex JSONL gives agent_message + usage.
+    # Second Claude account slot (optional): CLAUDE_CONFIG_DIR separates auth
+    # completely (verified live: a fresh dir reports loggedIn:false while the
+    # default stays logged in). Log account B in with:
+    #   CLAUDE_CONFIG_DIR=~/.claude-b claude  (then /login)
+    # When B is authenticated, claude_b_critic runs on it (true 2-account
+    # teams); when it is not, the entry is unavailable and claude_b falls back
+    # to the primary account below. Listed FIRST so B wins for its model.
+    ProviderProfile(
+        "claude-code-b", SUBSCRIPTION_CLI, "Claude Code (account B)",
+        command="claude", auth_check=["claude", "auth", "status"],
+        auth_expect='"loggedIn": true',
+        env={"CLAUDE_CONFIG_DIR": "~/.claude-b"},
+        invoke=[
+            "claude", "-p", "--output-format", "json",
+            "--system-prompt",
+            "You are one worker in an AMMO model team. You receive a role, a "
+            "task, and prior members' outputs as context. Do your role's part "
+            "directly and concisely. Do not use tools.",
+            "--strict-mcp-config", "--disallowedTools", "*",
+            "--no-session-persistence",
+        ],
+        parser="claude_json",
+        models=["claude_b_critic"], cost="included",
+    ),
     # Lightweight worker mode MEASURED live 2026-07-02: replacing the full
     # Claude Code session surface (system prompt/MCP/tools/CLAUDE.md) with a
     # tiny worker prompt cut input tokens 22,803 -> 768 (~30x) and per-call
@@ -75,6 +105,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     ProviderProfile(
         "claude-code", SUBSCRIPTION_CLI, "Claude Code",
         command="claude", auth_check=["claude", "auth", "status"],
+        auth_expect='"loggedIn": true',
         invoke=[
             "claude", "-p", "--output-format", "json",
             "--system-prompt",
