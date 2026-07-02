@@ -1,0 +1,8 @@
+cases:
+  - id: coding-debug-tests-1
+    input: "이 python repo 버그 고치고 테스트 추가해줘"
+    expect:
+      system: coding
+      roles: [planner, builder, critic, test_runner]
+      tools: [fs.read, fs.write, git, shell.run]
+      confidence_max: medium

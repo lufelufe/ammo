@@ -1,0 +1,8 @@
+cases:
+  - id: research-verify-1
+    input: "이 주제 자료 조사하고 근거 검증해줘"
+    expect:
+      system: research
+      roles: [researcher, skeptic, synthesizer]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

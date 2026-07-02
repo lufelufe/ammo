@@ -1,0 +1,8 @@
+cases:
+  - id: ops-incident-1
+    input: "서버 배포하다가 장애났어 롤백해줘"
+    expect:
+      system: ops
+      roles: [triage, operator, rollback_critic]
+      tools: [shell.run]
+      confidence_max: medium

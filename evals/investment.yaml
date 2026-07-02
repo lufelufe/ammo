@@ -1,0 +1,8 @@
+cases:
+  - id: investment-research-1
+    input: "NVDA 투자 분석 리포트 만들어줘"
+    expect:
+      system: personal   # investment is served by the personal pack
+      roles: [researcher, critic, judge]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

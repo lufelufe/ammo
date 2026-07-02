@@ -1,0 +1,10 @@
+# Eval cases for the personal domain. Expectations reflect AMMO's current
+# deterministic (static, mock) behavior; re-run over time to track improvement.
+cases:
+  - id: personal-briefing-1
+    input: "오늘 할 일 정리해줘"
+    expect:
+      system: personal
+      roles: [fast_worker]
+      tools: [web.search, web.fetch]
+      confidence_max: medium
