@@ -36,6 +36,7 @@ class TaskVector:
     needs_code_execution: bool = False
     needs_tests: bool = False
     tags: List[str] = field(default_factory=list)
+    understanding_source: str = "rules"
 
     def to_dict(self) -> Dict[str, Any]:
         """Ordered dict (field declaration order) suitable for JSON output."""

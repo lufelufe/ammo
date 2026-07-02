@@ -82,11 +82,20 @@ class TaskAnalyzer:
 
     # -- public -------------------------------------------------------------
 
-    def analyze(self, raw_input: str) -> TaskVector:
+    def analyze(self, raw_input: str, domain_hint: str = None,
+                intent_hint: str = None) -> TaskVector:
+        """`domain_hint`/`intent_hint` (from model-assisted understanding) are
+        applied ONLY when the rule engine is uncertain (general/None) — rules
+        stay the router of record when they are confident."""
         text = raw_input.lower()
 
         domain = self._domain(text)
         intent = self._intent(domain, text)
+        hinted = False
+        if domain in (None, "general") and domain_hint and domain_hint != domain:
+            domain = domain_hint
+            intent = intent_hint or self._intent(domain, text)
+            hinted = True
 
         needs_current_info = sg.contains(text, sg.CURRENT_INFO)
         needs_tests = sg.contains(text, sg.TESTS)
@@ -108,6 +117,8 @@ class TaskAnalyzer:
         vector.required_tools = self._tools(vector, text)
         vector.candidate_systems = self._candidate_systems(domain, text)
         vector.tags = self._tags(vector, text)
+        if hinted:
+            vector.understanding_source = "rules+assist"
         return vector
 
     # -- classification steps ----------------------------------------------

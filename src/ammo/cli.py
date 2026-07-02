@@ -132,6 +132,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exploration nudge for under-tried models (default off; bare flag = 1.0).",
     )
     plan_parser.add_argument(
+        "--assist", action="store_true",
+        help="Let a cheap real model fill understanding gaps when rules are uncertain.",
+    )
+    plan_parser.add_argument(
         "--optimize", choices=["balanced", "performance", "cost", "speed"],
         default=None,
         help="Objective for team selection (default: configured value or balanced).",
@@ -174,6 +178,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--explore", type=float, nargs="?", const=1.0, default=0.0,
         help="Exploration nudge for under-tried models (default off; bare flag = 1.0).",
+    )
+    run_parser.add_argument(
+        "--assist", action="store_true",
+        help="Let a cheap real model fill understanding gaps when rules are uncertain.",
     )
     run_parser.add_argument(
         "--optimize", choices=["balanced", "performance", "cost", "speed"],

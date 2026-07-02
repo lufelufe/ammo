@@ -6,7 +6,7 @@ from ammo.kernel.capability_graph import CapabilityGraph, score_models, task_nee
 from ammo.kernel.task_understanding import TaskAnalyzer
 from ammo.kernel.team_formation import TeamFormer
 from ammo.paths import find_ammo_root
-from ammo.commands.common import _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective
+from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
@@ -34,8 +34,9 @@ def _cmd_list_models(_args: argparse.Namespace) -> int:
 
 
 def _cmd_score_models(args: argparse.Namespace) -> int:
-    graph = CapabilityGraph.from_registry(find_ammo_root())
-    task = TaskAnalyzer().analyze(args.text)
+    root = find_ammo_root()
+    graph = CapabilityGraph.from_registry(root)
+    task = _understand(root, args)
     ranked = score_models(task, graph)
 
     primary, secondary, caps = task_needs(task)
@@ -52,7 +53,7 @@ def _cmd_score_models(args: argparse.Namespace) -> int:
 def _cmd_plan_team(args: argparse.Namespace) -> int:
     root = find_ammo_root()
     graph = CapabilityGraph.from_registry(root)
-    task = TaskAnalyzer().analyze(args.text)
+    task = _understand(root, args)
     pack = _load_pack_for_task(root, task)
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),

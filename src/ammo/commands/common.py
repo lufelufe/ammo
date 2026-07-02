@@ -79,3 +79,36 @@ def _load_binding(root, task):
         return BindingStore(root).load(task.candidate_systems[0])
     except Exception:
         return None
+
+def _understand(root, args):
+    """TaskVector via rules; with --assist a cheap real model fills gaps."""
+    from ammo.kernel.task_understanding import TaskAnalyzer
+
+    analyzer = TaskAnalyzer()
+    if getattr(args, "assist", False):
+        invoke = _assist_invoke(root, args)
+        if invoke is not None:
+            from ammo.kernel.task_understanding.assist import assisted_analyze
+
+            return assisted_analyze(analyzer, args.text, invoke)
+        print("note: --assist needs an available real provider — rules only")
+    return analyzer.analyze(args.text)
+
+
+def _assist_invoke(root, args):
+    """Cheapest usable real model as a classifier callable, else None."""
+    from ammo.adapters import AdapterRequest, RealAdapterFactory
+
+    factory = RealAdapterFactory(root=root,
+                                 allow_paid=bool(getattr(args, "allow_paid", False)))
+    model = ("claude_haiku_fast" if "claude_haiku_fast" in factory.usable
+             else next(iter(factory.usable), None))
+    if model is None:
+        return None
+    adapter = factory(model)
+
+    def invoke(prompt: str) -> str:
+        return adapter.execute(AdapterRequest(
+            role="classifier", model=model, task_input=prompt)).output
+
+    return invoke

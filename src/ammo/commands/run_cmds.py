@@ -14,7 +14,7 @@ from ammo.memory import MemoryAdvisor, MemoryStore, team_signature
 from ammo.paths import find_ammo_root
 from ammo.roles import RoleWorkspace
 from ammo.registry import RegistryError, SystemPackLoader, enabled_systems
-from ammo.commands.common import _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective, _role_memory
+from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective, _role_memory
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
@@ -27,7 +27,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     root = find_ammo_root()
     graph = CapabilityGraph.from_registry(root)
-    task = TaskAnalyzer().analyze(args.text)
+    task = _understand(root, args)
     pack = _load_pack_for_task(root, task)
     former = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),

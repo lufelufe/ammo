@@ -130,6 +130,18 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery P3+P2+P4 — verification and understanding complete the manifesto.**
+  P3: `verification.yaml test_command` runs FOR REAL in the (kernel-confined)
+  sandbox under `--execute-tools` — measured `test_result` evidence, honestly
+  blocked without isolation. P2: `run --consensus N` answers the lead seat
+  with N independent qualified models (`TeamFormer.alternates`); the checker
+  compares variants via a structured `CONSENSUS: agree|split` line — the
+  engine's agreement factor uses MEASURED consensus when sampled and the
+  distinct-models proxy only otherwise. P4: `--assist` lets a cheap real model
+  (haiku-first) classify requests the rule engine is uncertain about
+  (general/None); a valid hint re-derives the vector through the rule pipeline
+  (`understanding_source: rules+assist`), while confident rule verdicts never
+  even call the model.
 - **Delivery P1 — Debate execution mode.** A workflow stage marked `debate`
   turns the checker's objection into an exchange: challenge -> proposer
   rebuttal (objection handed over as context) -> challenger FINAL verdict,
