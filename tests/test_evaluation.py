@@ -121,3 +121,28 @@ def test_cli_eval_systems_lists_all(ammo_root, capsys):
     assert code == 0
     for system_id in ("personal", "research", "coding", "ops"):
         assert system_id in out
+
+
+def test_recurring_negative_reasons_become_suggestions(tmp_path):
+    import os, shutil
+    root = tmp_path / "root"
+    root.mkdir()
+    os.symlink(REPO_ROOT / "registry", root / "registry")
+    shutil.copytree(REPO_ROOT / "systems", root / "systems")
+    for name in ("runtime", "memory", "vaults"):
+        (root / name).mkdir()
+
+    from ammo.memory import MemoryStore
+
+    with MemoryStore.open(root) as store:
+        for i in range(4):
+            store.record_run(
+                run_id=f"r{i}", timestamp=f"t{i}", domain="coding", tags=[],
+                selected_system="coding", model_ids=["kimi_coder_mock"],
+                team_signature="builder:kimi_coder_mock", confidence_score=0.3,
+                negative_reasons=["no real tests executed", f"one-off {i}"],
+            )
+    report = EvaluationEngine().evaluate(root, "coding")
+    recurring = [s for s in report.improvements if "recurring issue" in s]
+    assert any("no real tests executed" in s and "4/4" in s for s in recurring)
+    assert not any("one-off" in s for s in recurring)   # singletons don't recur

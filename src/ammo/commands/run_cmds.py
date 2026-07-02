@@ -149,6 +149,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             total_tokens=economics["total_tokens"],
             estimated_cost=economics["estimated_cost"],
             model_usage=model_usage,
+            negative_reasons=report.reasons_negative,
         )
 
     # role-bound working directories: traces attach to the ROLE, not the model

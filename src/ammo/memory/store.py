@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS runs (
     outcome_status   TEXT,
     user_feedback    TEXT,
     total_tokens     INTEGER,
-    estimated_cost   REAL
+    estimated_cost   REAL,
+    negative_reasons TEXT
 );
 
 CREATE TABLE IF NOT EXISTS model_performance (
@@ -101,6 +102,7 @@ class MemoryStore:
                 "team_signature": "TEXT",              # added in M15
                 "total_tokens": "INTEGER",             # added in M17 (economics)
                 "estimated_cost": "REAL",
+                "negative_reasons": "TEXT",            # confidence reasons (aggregated by eval)
             },
             "model_performance": {
                 "average_tokens": "REAL NOT NULL DEFAULT 0",   # added in M17
@@ -148,6 +150,7 @@ class MemoryStore:
         total_tokens: Optional[int] = None,
         estimated_cost: Optional[float] = None,
         model_usage: Optional[Dict[str, Dict[str, float]]] = None,
+        negative_reasons: Optional[List[str]] = None,
     ) -> str:
         """Record one run. ``model_usage`` maps model_id -> {tokens, cost} so the
         improvement loop can learn cost-efficiency per model, not just quality."""
@@ -163,11 +166,12 @@ class MemoryStore:
                 "INSERT OR REPLACE INTO runs "
                 "(run_id, timestamp, domain, tags, selected_system, selected_models, "
                 " team_signature, confidence_score, outcome_status, user_feedback, "
-                " total_tokens, estimated_cost) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                " total_tokens, estimated_cost, negative_reasons) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (run_id, timestamp, domain, json.dumps(tags), selected_system,
                  json.dumps(model_ids), team_signature, confidence_score, status,
-                 user_feedback, total_tokens, estimated_cost),
+                 user_feedback, total_tokens, estimated_cost,
+                 json.dumps(negative_reasons or [], ensure_ascii=False)),
             )
             for model_id in model_ids:
                 usage = model_usage.get(model_id, {})
@@ -232,6 +236,7 @@ class MemoryStore:
             d = dict(r)
             d["tags"] = json.loads(d["tags"] or "[]")
             d["selected_models"] = json.loads(d["selected_models"] or "[]")
+            d["negative_reasons"] = json.loads(d.get("negative_reasons") or "[]")
             out.append(d)
         return out
 
@@ -270,7 +275,12 @@ class MemoryStore:
         rows = self.conn.execute(
             "SELECT * FROM runs WHERE selected_system=? ORDER BY timestamp DESC", (system_id,)
         ).fetchall()
-        return [dict(r) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["negative_reasons"] = json.loads(d.get("negative_reasons") or "[]")
+            out.append(d)
+        return out
 
     # -- user feedback: ground truth for calibration ---------------------------
 

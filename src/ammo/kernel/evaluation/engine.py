@@ -77,6 +77,16 @@ class EvaluationEngine:
                 improvements.append(
                     f"average confidence {avg} below gate {gate} — strengthen team or evidence"
                 )
+            # recurring negative confidence reasons -> sharp, specific suggestions
+            counts: dict = {}
+            for run in runs:
+                for reason in set(run.get("negative_reasons") or []):
+                    counts[reason] = counts.get(reason, 0) + 1
+            for reason, n in sorted(counts.items(), key=lambda kv: -kv[1])[:3]:
+                if n >= 2 and n * 2 >= len(runs):        # in at least half the runs
+                    improvements.append(
+                        f"recurring issue ({n}/{len(runs)} runs): {reason}"
+                    )
 
         health = self._health(problems, runs, stats)
         return EvaluationReport(system_id, health, works, improvements, problems, stats)
