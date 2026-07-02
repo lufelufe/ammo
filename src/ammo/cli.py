@@ -1072,43 +1072,72 @@ def _cmd_run(args: argparse.Namespace) -> int:
     else:
         factory = lambda model_id: MockAdapter(model_id)  # noqa: E731
         mode = "mock"
-    result = Runner(factory, mode=mode).run(
-        plan, task,
-        system_context=(pack.context or "") if pack else "",
-        role_context=_role_memory(root, plan.selected_system, plan.roles),
-    )
+    def _execute(current_plan):
+        """One execute→enforce-tools→assess pass (used again by self-heal)."""
+        result = Runner(factory, mode=mode).run(
+            current_plan, task,
+            system_context=(pack.context or "") if pack else "",
+            role_context=_role_memory(root, current_plan.selected_system, current_plan.roles),
+        )
 
-    # tool execution + permission enforcement: workers' declared tools are gated
-    # against the system's permissions.yaml + .ammoignore, then (safely) executed.
-    tool_permitted = tool_denied = 0
-    sandbox = None
-    if plan.selected_system:
-        try:
-            import tempfile
+        # tool execution + permission enforcement: workers' declared tools are
+        # gated against permissions.yaml + .ammoignore, then (safely) executed.
+        permitted = denied = 0
+        sandbox = None
+        if current_plan.selected_system:
+            try:
+                import tempfile
 
-            from ammo.tools import PermissionGate, Sandbox, ToolExecutor
+                from ammo.tools import PermissionGate, Sandbox, ToolExecutor
 
-            if args.execute_tools:
-                sandbox_base = root / "runtime" / "sandbox"
-                sandbox_base.mkdir(parents=True, exist_ok=True)
-                sandbox = Sandbox(tempfile.mkdtemp(dir=str(sandbox_base)))
+                if args.execute_tools:
+                    sandbox_base = root / "runtime" / "sandbox"
+                    sandbox_base.mkdir(parents=True, exist_ok=True)
+                    sandbox = Sandbox(tempfile.mkdtemp(dir=str(sandbox_base)))
 
-            tool_pack = pack or SystemPackLoader(root).load(plan.selected_system)
-            executor = ToolExecutor(PermissionGate.from_pack(root, tool_pack), sandbox=sandbox)
-            for response in result.responses:
-                for evidence in executor.run_all(response.tool_requests):
-                    response.evidence.append(evidence)
-                    if evidence.ok:
-                        tool_permitted += 1
-                    else:
-                        tool_denied += 1
-        except RegistryError:
-            pass
+                tool_pack = pack or SystemPackLoader(root).load(current_plan.selected_system)
+                executor = ToolExecutor(PermissionGate.from_pack(root, tool_pack), sandbox=sandbox)
+                for response in result.responses:
+                    for evidence in executor.run_all(response.tool_requests):
+                        response.evidence.append(evidence)
+                        if evidence.ok:
+                            permitted += 1
+                        else:
+                            denied += 1
+            except RegistryError:
+                pass
 
-    report = ConfidenceEngine().assess(
-        task, plan, result.responses, mode=result.mode,
-        verification=pack.verification if pack else None,
-    )
+        report = ConfidenceEngine().assess(
+            task, current_plan, result.responses, mode=result.mode,
+            verification=pack.verification if pack else None,
+        )
+        return result, report, sandbox, permitted, denied
+
+    result, report, sandbox, tool_permitted, tool_denied = _execute(plan)
+
+    # self-heal: below the system's gate with a declared `add_role:X`
+    # escalation -> reinforce the team once and re-run (never loops).
+    healed_from = None
+    healed_role = None
+    heal_limits = (pack.limits or {}) if pack else {}
+    heal_gate = heal_limits.get("confidence_gate")
+    heal_escalation = str(heal_limits.get("escalation") or "")
+    if (heal_gate is not None and report.confidence_score < float(heal_gate)
+            and heal_escalation.startswith("add_role:")):
+        extra = heal_escalation.split(":", 1)[1].strip()
+        if extra and extra not in plan.roles:
+            healed_from, healed_role = report.confidence_score, extra
+            plan = TeamFormer(
+                graph, memory=_load_memory_advisor(root, args),
+                binding=_load_binding(root, task),
+                objective=_resolve_objective(root, args), primary=_load_primary(root),
+                preferences=pack.preferences if pack else None,
+                limits=pack.limits if pack else None,
+            ).form(task, extra_roles=[extra])
+            plan.notes.append(
+                f"self-heal: confidence {healed_from} < gate {heal_gate} -> added {extra}"
+            )
+            result, report, sandbox, tool_permitted, tool_denied = _execute(plan)
 
     # economics: estimate token usage + cost (api = spend, subscription =
     # equivalent value, local = 0) and feed it into the improvement loop.
@@ -1174,6 +1203,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
            if economics["unpriced_models"] else "")
     )
     print(f"confidence: {report.confidence_score} ({report.confidence_band})")
+    if healed_from is not None:
+        print(f"self-heal: escalated (+{healed_role}) after gate miss — "
+              f"confidence {healed_from} -> {report.confidence_score}")
     # triage: failure signals become diagnoses with concrete fixes
     from ammo.triage import diagnose_run
 

@@ -173,3 +173,61 @@ def test_majority_without_evidence_is_penalized_in_real_mode():
     backed_r = engine.assess(task, plan, backed, mode="real")
     assert bare_r.confidence_score < backed_r.confidence_score
     assert any("no structured evidence" in r for r in bare_r.reasons_negative)
+
+
+# --- self-heal: gate miss + declared escalation -> one reinforced re-run ---------
+
+import os
+import shutil
+
+
+@pytest.fixture
+def heal_root(tmp_path, monkeypatch):
+    root = tmp_path / "root"
+    root.mkdir()
+    os.symlink(REPO_ROOT / "registry", root / "registry")
+    shutil.copytree(REPO_ROOT / "systems", root / "systems")
+    for name in ("runtime", "memory", "vaults"):
+        (root / name).mkdir()
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    return root
+
+
+def test_self_heal_escalates_once_on_gate_miss(heal_root, capsys):
+    from ammo import cli
+
+    (heal_root / "systems" / "personal" / ".ammo" / "limits.yaml").write_text(
+        "apiVersion: ammo/v1\nkind: Limits\nsystem: personal\n"
+        "confidence_gate: 0.95\nescalation: add_role:critic\n",
+        encoding="utf-8",
+    )
+    code = cli.main(["run", "--mock", "오늘 할 일 정리해줘"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "self-heal: escalated (+critic)" in out          # reinforced re-run happened
+    assert "team: fast_worker, critic" in out               # critic actually joined
+    assert out.count("self-heal: escalated") == 1           # never loops
+
+
+def test_no_self_heal_when_gate_passes(heal_root, capsys):
+    from ammo import cli
+
+    (heal_root / "systems" / "personal" / ".ammo" / "limits.yaml").write_text(
+        "apiVersion: ammo/v1\nkind: Limits\nsystem: personal\n"
+        "confidence_gate: 0.1\nescalation: add_role:critic\n",
+        encoding="utf-8",
+    )
+    cli.main(["run", "--mock", "오늘 할 일 정리해줘"])
+    out = capsys.readouterr().out
+    assert "self-heal" not in out
+
+
+def test_former_extra_roles_appends_known_position(heal_root):
+    from ammo.kernel.capability_graph import CapabilityGraph
+    from ammo.kernel.task_understanding import TaskAnalyzer
+    from ammo.kernel.team_formation import TeamFormer
+
+    graph = CapabilityGraph.from_registry(root=REPO_ROOT)
+    task = TaskAnalyzer(systems=[]).analyze("오늘 할 일 정리해줘")
+    plan = TeamFormer(graph).form(task, extra_roles=["critic", "nonsense_role"])
+    assert plan.roles == ["fast_worker", "critic"]          # unknown role ignored

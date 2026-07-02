@@ -51,7 +51,9 @@ class TeamFormer:
 
     # -- public -------------------------------------------------------------
 
-    def form(self, task: TaskVector) -> ExecutionPlan:
+    def form(self, task: TaskVector, extra_roles: Optional[List[str]] = None) -> ExecutionPlan:
+        """`extra_roles` lets an escalation (limits.yaml `add_role:X`) reinforce
+        the team; they are appended AFTER the max_team_size cap on purpose."""
         template = self._select_template(task)
         positions = list(tpl.TEMPLATES[template])
         if template == "coding_standard" and task.needs_tests:
@@ -61,6 +63,10 @@ class TeamFormer:
         max_team = self.limits.get("max_team_size")
         if max_team:
             positions = positions[: int(max_team)]
+
+        for role in extra_roles or []:
+            if role not in positions and (role in tpl.POSITION_SPEC or role in tpl.FIXED_MODELS):
+                positions.append(role)
 
         team, notes = self._assign_models(positions, task)
         roles = [m.role for m in team]

@@ -62,10 +62,11 @@ models (`RealAdapterFactory`), falling back to mock otherwise. Tool calls are
 `permissions.yaml` + `.ammoignore`); safe read-only tools execute for real. With
 `run --execute-tools`, permitted side-effecting tools run in a **soft sandbox**
 (confined dir, minimal env, tiny command allowlist, timeout): `fs.write` mirrors
-into the sandbox and allowlisted `shell.run` executes; `git`/network stay
-deferred (need OS-level isolation). Still pending: OS-level sandboxing,
-sandbox→real promotion (apply a sandboxed change after diff review), the
-API/HTTP route, and spec→engine wiring (see `docs/BACKLOG.md`).
+into the sandbox and allowlisted `shell.run` executes; `ammo promote RUN_ID`
+applies sandboxed writes to the real target after a diff review. Per-system
+specs (preferences/limits/verification/context.md) govern the engines, and
+errors self-diagnose via triage. Still pending: OS-level sandboxing (git/
+network) and the API/HTTP route (see `docs/BACKLOG.md`).
 
 ## How to add things (smallest footprint first)
 
