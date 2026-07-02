@@ -6,3 +6,10 @@ cases:
       roles: [researcher, critic, judge]
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium
+  - id: investment-rebalance-1
+    input: "포트폴리오 리밸런싱 전략 검토해줘"
+    expect:
+      system: personal
+      roles: [researcher, critic, judge]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

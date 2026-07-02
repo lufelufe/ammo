@@ -75,16 +75,20 @@ class SuiteReport:
 
 class EvalSuite:
     def __init__(self, analyzer: Optional[TaskAnalyzer] = None,
-                 graph: Optional[CapabilityGraph] = None, root=None):
+                 graph: Optional[CapabilityGraph] = None, root=None,
+                 memory=None):
+        """`memory=None` is the static baseline; pass a MemoryAdvisor to score
+        AMMO's decisions WITH accumulated experience (learning mode)."""
         self.analyzer = analyzer or TaskAnalyzer(systems=[])
         self.graph = graph or CapabilityGraph.from_registry(root)
+        self.memory = memory
 
     def run(self, cases: List[EvalCase]) -> SuiteReport:
         return SuiteReport([self.run_case(c) for c in cases])
 
     def run_case(self, case: EvalCase) -> CaseResult:
         task = self.analyzer.analyze(case.input)
-        plan = TeamFormer(self.graph).form(task)  # static baseline (no memory/binding)
+        plan = TeamFormer(self.graph, memory=self.memory).form(task)
         result = Runner(lambda model_id: MockAdapter(model_id)).run(plan, task)
         report = ConfidenceEngine().assess(task, plan, result.responses, mode=result.mode)
 

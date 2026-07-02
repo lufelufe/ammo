@@ -6,3 +6,10 @@ cases:
       roles: [triage, operator, rollback_critic]
       tools: [shell.run]
       confidence_max: medium
+  - id: ops-recovery-1
+    input: "서버 장애 원인 분석하고 복구해줘"
+    expect:
+      system: ops
+      roles: [triage, operator, rollback_critic]
+      tools: [shell.run]
+      confidence_max: medium

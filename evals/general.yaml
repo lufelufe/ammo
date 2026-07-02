@@ -1,0 +1,17 @@
+# Edge/negative cases: inputs with no domain signal must degrade gracefully to
+# a cheap single-worker team, never to a heavy misrouted one.
+cases:
+  - id: general-simple-1
+    input: "간단한 유틸 스크립트 작성해줘"
+    expect:
+      system: null
+      roles: [fast_worker]
+      tools: []
+      confidence_max: medium
+  - id: general-negative-gibberish-1
+    input: "asdf qwer zxcv"
+    expect:
+      system: null
+      roles: [fast_worker]
+      tools: []
+      confidence_max: medium

@@ -6,3 +6,10 @@ cases:
       roles: [researcher, skeptic, synthesizer]
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium
+  - id: research-english-1
+    input: "research this topic and verify the sources"
+    expect:
+      system: research
+      roles: [researcher, skeptic, synthesizer]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

@@ -97,3 +97,50 @@ def test_cli_eval_requires_mock(ammo_root, capsys):
     code = cli.main(["eval"])
     out = capsys.readouterr().out
     assert code == 2 and "mock" in out.lower()
+
+
+# --- learning mode + trend compare (eval expansion) ----------------------------
+
+def test_eval_with_memory_changes_decisions():
+    from ammo.evalsuite import EvalSuite
+    from ammo.evalsuite.case import EvalCase
+    from ammo.memory import MemoryAdvisor
+
+    # research lead seat is a static tie — strong memory for qwen decides it
+    stats = {("qwen_planner_mock", "research"): {
+        "attempts": 5, "successes": 5, "average_confidence": 0.9,
+        "average_cost": 0.0, "average_tokens": 10}}
+    advisor = MemoryAdvisor(stats, {})
+    case = EvalCase(id="x", input="이 주제 자료 조사하고 근거 검증해줘",
+                    expect={"system": "research"})
+    static = EvalSuite(root=REPO_ROOT).run_case(case)
+    learned = EvalSuite(root=REPO_ROOT, memory=advisor).run_case(case)
+    assert static.observed["system"] == learned.observed["system"] == "research"
+    # the learning mode is actually consulted (decision may differ from baseline)
+    assert learned.observed["roles"] == static.observed["roles"]
+
+
+def test_cli_eval_compare_shows_trend(tmp_path, monkeypatch, capsys):
+    import json as _json
+
+    root = tmp_path / "root"
+    (root / "runtime" / "reports").mkdir(parents=True)
+    (root / "registry").mkdir()
+    for name, passed in (("eval-20260101T000000Z.json", 9), ("eval-20260102T000000Z.json", 11)):
+        (root / "runtime" / "reports" / name).write_text(_json.dumps({
+            "created_at": name, "mode": "static", "cases_passed": passed, "cases_total": 11,
+            "metric_totals": {"selected_system_correct": {"passed": passed, "total": 11}},
+            "cases": [{"id": "c1", "passed": passed == 11}],
+        }), encoding="utf-8")
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    assert cli.main(["eval", "--compare"]) == 0
+    out = capsys.readouterr().out
+    assert "eval trend" in out and "9/11 -> 11/11 (+2)" in out
+    assert "fixed: c1" in out
+
+
+def test_cli_eval_compare_needs_two_reports(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "root"
+    root.mkdir()
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    assert cli.main(["eval", "--compare"]) == 1

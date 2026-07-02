@@ -6,3 +6,10 @@ cases:
       roles: [planner, builder, critic, test_runner]
       tools: [fs.read, fs.write, git, shell.run]
       confidence_max: medium
+  - id: coding-english-1
+    input: "fix the bug in this python repo and add tests"
+    expect:
+      system: coding
+      roles: [planner, builder, critic, test_runner]
+      tools: [fs.read, fs.write, git, shell.run]
+      confidence_max: medium
