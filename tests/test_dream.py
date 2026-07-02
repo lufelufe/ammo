@@ -150,3 +150,26 @@ def test_cli_dream_dry_run_then_apply(ammo_root, capsys):
     assert cli.main(["dream", "--window", "5", "--apply"]) == 0
     out = capsys.readouterr().out
     assert "APPLIED" in out and "backup:" in out
+
+
+def test_doctor_suggests_dream_when_memory_bloats(root):
+    from ammo.doctor import run_doctor
+
+    with MemoryStore.open(root) as s:
+        for i in range(55):   # > DEFAULT_WINDOW (50)
+            s.record_run(run_id=f"b{i}", timestamp=f"t{i}", domain="coding", tags=[],
+                         selected_system="coding", model_ids=["kimi_coder_mock"],
+                         team_signature="builder:kimi_coder_mock", confidence_score=0.7)
+    report = run_doctor(root)
+    assert any("ammo dream" in n for n in report.notices)
+
+
+def test_doctor_quiet_below_window(root):
+    from ammo.doctor import run_doctor
+
+    with MemoryStore.open(root) as s:
+        s.record_run(run_id="one", timestamp="t", domain="coding", tags=[],
+                     selected_system="coding", model_ids=["kimi_coder_mock"],
+                     team_signature="builder:kimi_coder_mock", confidence_score=0.7)
+    report = run_doctor(root)
+    assert not any("ammo dream" in n for n in report.notices)

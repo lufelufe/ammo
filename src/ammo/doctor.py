@@ -112,6 +112,23 @@ def run_doctor(root: Path) -> DoctorReport:
                     f"`ammo connect <path> --id {child.name}`"
                 )
 
+    # informational: memory bloat — suggest a dream pass (docs/MEMORY_DREAM.md)
+    db = root / "memory" / "ammo.sqlite"
+    if db.is_file():
+        try:
+            from ammo.dream.engine import DEFAULT_WINDOW
+            from ammo.memory import MemoryStore
+
+            with MemoryStore(db) as memory:
+                total_runs = memory.stats()["total_runs"]
+            if total_runs > DEFAULT_WINDOW:
+                report.notices.append(
+                    f"memory holds {total_runs} runs (> window {DEFAULT_WINDOW}) — "
+                    "consider `ammo dream` to consolidate"
+                )
+        except Exception:  # doctor stays read-only and never fails on memory
+            pass
+
     return report
 
 

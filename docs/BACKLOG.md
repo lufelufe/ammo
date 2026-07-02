@@ -103,26 +103,21 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   - **OS-level isolation** for git / network / arbitrary commands — the soft
     sandbox's allowlist is deliberately tiny; a container/namespace step is
     needed before broadening it.
-  - **Sandbox→real promotion**: `fs.write` mirrors into the sandbox; applying a
-    sandboxed change to the real target (with diff review) is not implemented.
-  - Confirm `.ammoignore` glob semantics against real trees; sandbox dirs under
-    `runtime/sandbox/` have no GC/pruning.
+  - Sandbox dirs under `runtime/sandbox/` have no GC/pruning (promoted or not).
+  - `ammo promote` flattens absolute write paths to basenames (mirrors the
+    sandbox write rule) — relative-path fidelity for nested targets relies on
+    workers requesting relative paths.
 - **API/HTTP route deferred**: real exec is command-based (subscription CLI /
   local). Paid API models have no command invoke → they fall back to mock. A
   proper HTTP adapter (still secret-free via env) is a separate piece.
 - Model ids in the provider catalog are the mock ids; map them to real model
   names when adapters are finalized.
 
-### Per-system optimization & evaluation (M13)
-- Specs are declared/loaded/evaluated but **not yet wired into the engines**:
-  - `preferences.yaml` → bias `TeamFormer` (preferred caps/roles, model_bias,
-    default_template).
-  - `verification.yaml` → `ConfidenceEngine` (which evidence kinds count as
-    success; required_outputs).
-  - `limits.yaml` → cap team size / cost, override `confidence_gate` &
-    escalation.
-  - `context.md` → inject into workers at execution (Phase 9).
-  - `.ammoignore` → enforce during file access (Phase 9).
+### Per-system optimization & evaluation (M13; spec wiring shipped in M19)
+- Wiring leftovers: `verification.required_outputs` (only `success_evidence` is
+  scored); `preferences.preferred_roles` (capabilities/bias/template are wired);
+  spec loading keys off `task.candidate_systems[0]` — if a binding redirects the
+  system, specs of the original candidate apply.
 - `adopt` refines at **file granularity** (adds missing files, preserves
   existing). Field-level refine (merge missing keys into a partially-filled file)
   is deferred.

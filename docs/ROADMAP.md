@@ -130,6 +130,26 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery M19 — Spec wiring: the optimization specs govern the engines.**
+  `preferences.yaml` → formation (default_template override; qualified-only
+  `model_bias` clamped below a capability match; `preferred_capabilities`
+  bonus). `limits.yaml` → formation + acceptance (`max_team_size` truncation in
+  template order; `cost_class_max` candidate cap with unfillable-seat fallback;
+  `confidence_gate`/`escalation` reported after assessment). `verification.yaml`
+  → confidence (declared `success_evidence` present/missing moves the score).
+  `context.md` + each role's distilled memory (`insights.md` + `last.md`) are
+  injected into every worker request — the role journal loop closes: record →
+  dream-distill → read back.
+- **Delivery — Primary seat wiring.** The summoning host's model
+  (`ammo.config.yaml`) anchors the LEAD seat: +1.5 for a qualified primary —
+  breaks genuine ties toward the host, can never outweigh a capability match.
+- **Delivery — Sandbox→real promotion (`ammo promote`).** Runs with
+  `--execute-tools` record their sandbox; `promote RUN_ID` shows per-file
+  unified diffs (dry-run default) and `--apply` copies files after backing up
+  pre-images into the run dir. Targets come from the system's `source_path`
+  (read-only connections refused) or `--to`; every path re-passes the
+  PermissionGate incl. `.ammoignore`. `doctor` now suggests `ammo dream` when
+  memory exceeds the consolidation window.
 - **Delivery — Tool outcomes feed confidence**. The Confidence Engine now
   scores tool evidence: each denied tool (a member wanted a capability it never
   got) and each failed execution lowers the score (−0.06 each, two scored per
