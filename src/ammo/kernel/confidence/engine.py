@@ -142,6 +142,13 @@ class ConfidenceEngine:
         if not all_evidence:
             score -= 0.10
             neg.append("no evidence produced")
+        elif mode == "real":
+            # real mode is only trustworthy when members back their work:
+            # a majority of evidence-free members caps the optimism
+            no_evidence = [r for r in responses if not r.evidence]
+            if responses and len(no_evidence) * 2 > len(responses):
+                score -= 0.06
+                neg.append("most members produced no structured evidence")
 
         # 9. mock execution (no real work happened)
         if mode == "mock":
