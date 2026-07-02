@@ -1,0 +1,26 @@
+# Registry of SYSTEM PACKS known to the AMMO kernel.
+# The kernel discovers packs under systems/ and records them here so that Task
+# Understanding (later milestone) can route to them. Declarative only.
+apiVersion: ammo/v1
+kind: SystemRegistry
+systems:
+  - id: personal
+    path: systems/personal
+    enabled: true
+    status: scaffold        # scaffold = contract declared, behavior not built
+    description: Personal AI OS entry point (briefings, investment intel).
+  - id: research
+    path: systems/research
+    enabled: true
+    status: scaffold
+    description: Research & deep-investigation domain (binds ResearchVault).
+  - id: coding
+    path: systems/coding
+    enabled: true
+    status: scaffold
+    description: Software engineering domain.
+  - id: ops
+    path: systems/ops
+    enabled: true
+    status: scaffold
+    description: Operations & automation domain.

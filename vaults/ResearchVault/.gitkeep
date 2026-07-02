@@ -1,0 +1,5 @@
+# vaults/ResearchVault/ — private research data vault.
+#
+# Bound by the `research` system pack (see systems/research/.ammo/permissions.yaml
+# and memory_map.yaml). Contents are NEVER committed — only this placeholder is
+# tracked so the structure is visible. No secrets in the repo.

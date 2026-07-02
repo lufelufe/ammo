@@ -1,0 +1,18 @@
+# permissions.yaml — security boundary for the research pack.
+apiVersion: ammo/v1
+kind: Permissions
+system: research
+filesystem:
+  read: [systems/research]
+  write: [memory/research, runtime/research]
+vaults:
+  read: [ResearchVault]
+  write: [ResearchVault]
+network:
+  allow: true                   # research needs source access
+tools:
+  allow: [web.search, web.fetch, doc.read]
+models:
+  allow: ["*"]
+roles:
+  allow: [analyst, critic, synthesizer]

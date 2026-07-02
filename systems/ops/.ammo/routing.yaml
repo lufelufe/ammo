@@ -1,0 +1,14 @@
+# routing.yaml — relevance signals and starting roles for the ops pack.
+apiVersion: ammo/v1
+kind: Routing
+system: ops
+priority: 40                    # slightly lower; ops is rarely the default intent
+match:
+  intents: [ops.schedule, ops.monitor, ops.maintain]
+  keywords: [ops, 운영, schedule, 스케줄, cron, monitor, 모니터, 유지보수]
+  examples:
+    - "매일 아침 브리핑 스케줄 걸어줘"
+    - "런타임 상태 점검해줘"
+default_roles: [analyst, synthesizer]
+escalation:
+  on_low_confidence: add_role:critic

@@ -1,0 +1,17 @@
+# memory_map.yaml — coding memory (which team/model shipped a good change).
+apiVersion: ammo/v1
+kind: MemoryMap
+system: coding
+namespace: coding
+stores:
+  episodic:
+    kind: run-history
+    location: memory/coding/episodic
+  semantic:
+    kind: distilled-knowledge
+    location: memory/coding/semantic
+feedback:
+  writes: [outcome, confidence, team_composition, tests_passed]
+retention:
+  episodic: 180d
+  semantic: keep

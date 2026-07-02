@@ -1,0 +1,15 @@
+# workflows.yaml — declarative coding templates (implement -> review).
+# The two-model idea (Claude Code x2 + Codex) shows up here as separate roles;
+# which adapter fills each role is the kernel's decision, not the pack's.
+apiVersion: ammo/v1
+kind: Workflows
+system: coding
+workflows:
+  - id: implement-and-review
+    description: Implement a change, then have a different member review it.
+    stages:
+      - role: implementer
+        does: write-change
+      - role: reviewer
+        does: review-change   # ideally a different model than the implementer
+    confidence_gate: 0.7

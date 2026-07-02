@@ -1,0 +1,15 @@
+# routing.yaml — how the kernel's Task Understanding decides this pack is
+# relevant, and which roles it starts from. Declarative only (no execution).
+apiVersion: ammo/v1
+kind: Routing
+system: personal
+priority: 50                     # 0-100; higher wins on ties
+match:
+  intents: [personal.briefing, personal.investment_intel]
+  keywords: [briefing, 브리핑, 요약, NVDA, BTC, 시장, 부동산]
+  examples:
+    - "NVDA 뉴스 정리해줘"
+    - "이번 주 부동산 동향"
+default_roles: [router, analyst, synthesizer]
+escalation:
+  on_low_confidence: add_role:critic

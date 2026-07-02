@@ -1,0 +1,17 @@
+# memory_map.yaml — ops memory (routine outcomes, incident history).
+apiVersion: ammo/v1
+kind: MemoryMap
+system: ops
+namespace: ops
+stores:
+  episodic:
+    kind: run-history
+    location: memory/ops/episodic
+  semantic:
+    kind: distilled-knowledge
+    location: memory/ops/semantic
+feedback:
+  writes: [outcome, confidence, team_composition, incident]
+retention:
+  episodic: 365d
+  semantic: keep

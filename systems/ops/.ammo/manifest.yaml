@@ -1,0 +1,19 @@
+# manifest.yaml — the pack's IDENTITY and declared capabilities.
+apiVersion: ammo/v1
+kind: SystemPack
+id: ops
+name: Ops
+version: 0.0.0
+status: scaffold
+entrypoint: system.md
+description: >-
+  Operations & automation domain. Schedules recurring work, monitors state, and
+  runs maintenance routines for the AI OS itself.
+tags: [ops, automation, scheduling, monitoring]
+capabilities:
+  - id: schedule
+    summary: Schedule recurring work.
+  - id: monitor
+    summary: Observe system/runtime state and report anomalies.
+  - id: maintain
+    summary: Run maintenance routines.

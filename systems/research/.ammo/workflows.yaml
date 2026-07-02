@@ -1,0 +1,15 @@
+# workflows.yaml — declarative research templates (scan -> verify -> synthesize).
+apiVersion: ammo/v1
+kind: Workflows
+system: research
+workflows:
+  - id: deep-research
+    description: Survey sources, verify claims, synthesize a cited report.
+    stages:
+      - role: analyst
+        does: literature-scan
+      - role: critic
+        does: verify-claims
+      - role: synthesizer
+        does: compose-report
+    confidence_gate: 0.75       # high bar; low confidence re-runs verification

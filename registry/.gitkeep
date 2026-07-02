@@ -1,0 +1,5 @@
+# registry/ — Model & capability registries (data)
+#
+# Declares what models and capabilities are available to the kernel. Populated
+# via model adapters. See docs/MODEL_ADAPTER_SPEC.md. No secrets are ever stored
+# here — credentials are resolved at runtime, never committed.

@@ -1,0 +1,14 @@
+# routing.yaml — relevance signals and starting roles for the coding pack.
+apiVersion: ammo/v1
+kind: Routing
+system: coding
+priority: 50
+match:
+  intents: [coding.implement, coding.review, coding.refactor]
+  keywords: [code, 코드, bug, 버그, 리팩터, refactor, PR, 테스트, test]
+  examples:
+    - "이 버그 고쳐줘"
+    - "이 PR 리뷰해줘"
+default_roles: [implementer, reviewer]
+escalation:
+  on_low_confidence: add_role:critic

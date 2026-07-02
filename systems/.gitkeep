@@ -1,0 +1,5 @@
+# systems/ — System packs (data)
+#
+# Domain capabilities that layer on top of the AMMO kernel without modifying it
+# (personal, research, investment-system, ...). See docs/SYSTEM_PACK_SPEC.md.
+# Pack-private data/ and private/ subfolders are gitignored.

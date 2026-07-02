@@ -1,0 +1,5 @@
+# memory/ — Learning memory (data)
+#
+# Persistent store for the feedback loop: outcomes, successes, and failures that
+# reshape future team formation. Contents are gitignored (private); only this
+# placeholder is tracked.

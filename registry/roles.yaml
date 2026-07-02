@@ -1,0 +1,22 @@
+# Registry of ROLES a team member can take. Dynamic Team Formation (Phase 4)
+# assembles a temporary team by assigning these roles to model adapters. Packs
+# reference roles in routing.yaml (default_roles) and workflows.yaml (stages).
+apiVersion: ammo/v1
+kind: RoleRegistry
+roles:
+  - id: router
+    summary: Classify intent and route the task to the right pack/team.
+  - id: analyst
+    summary: Gather, filter, and structure the information a task needs.
+  - id: synthesizer
+    summary: Compose the final result from analyzed inputs.
+  - id: critic
+    summary: Adversarially challenge a result to expose errors before it ships.
+  - id: implementer
+    summary: Produce code or other concrete artifacts.
+  - id: reviewer
+    summary: Review artifacts for correctness and quality.
+  - id: aggregator
+    summary: >-
+      Combine advisory outputs from several members/models into one result
+      (Mixture-of-Agents topology; adopted from Hermes MoA).

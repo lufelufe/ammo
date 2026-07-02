@@ -1,0 +1,101 @@
+# Registry of MODEL nodes for the Capability Graph. Models are plugins; AMMO is
+# the IP. The kernel selects models by CAPABILITY (roles, capabilities, cost,
+# latency, context, warmth) — never by hard-coded name.
+#
+# NO secrets. `credentials_env` lists only variable NAMES (empty here). Every
+# entry below is a MOCK / planned node — no real model is called anywhere yet.
+# Adapter-mechanism details (api_mode, auth_type, ...) live at the adapter layer
+# (Phase 9); see docs/MODEL_ADAPTER_SPEC.md.
+apiVersion: ammo/v1
+kind: ModelRegistry
+models:
+  - id: claude_a_planner
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [router, analyst, synthesizer]
+    capabilities: [planning, reasoning, analysis, general]
+    context_window: 200000
+    cost_class: premium        # cheap | standard | premium
+    latency_class: medium      # fast | medium | slow
+    warm_status: warm          # warm | cold
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: codex_builder
+    provider: openai
+    adapter: ammo.adapters.codex
+    roles: [implementer, reviewer]
+    capabilities: [coding]
+    context_window: 128000
+    cost_class: standard
+    latency_class: medium
+    warm_status: cold
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: claude_b_critic
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [critic, reviewer]
+    capabilities: [review, analysis, reasoning]
+    context_window: 200000
+    cost_class: premium
+    latency_class: medium
+    warm_status: warm
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: qwen_planner_mock
+    provider: oss
+    adapter: ammo.adapters.local
+    roles: [router, analyst, synthesizer]
+    capabilities: [planning, analysis, general]
+    context_window: 32000
+    cost_class: cheap
+    latency_class: fast
+    warm_status: cold
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: kimi_coder_mock
+    provider: oss
+    adapter: ammo.adapters.local
+    roles: [implementer]
+    capabilities: [coding]
+    context_window: 128000
+    cost_class: cheap
+    latency_class: medium
+    warm_status: cold
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: gpt_oss_critic_mock
+    provider: oss
+    adapter: ammo.adapters.local
+    roles: [critic, reviewer]
+    capabilities: [review, analysis]
+    context_window: 32000
+    cost_class: cheap
+    latency_class: fast
+    warm_status: cold
+    enabled: true
+    status: mock
+    credentials_env: []
+
+  - id: fast_worker_mock
+    provider: oss
+    adapter: ammo.adapters.local
+    roles: [analyst, synthesizer, implementer]
+    capabilities: [general, writing]
+    context_window: 8000
+    cost_class: cheap
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: mock
+    credentials_env: []

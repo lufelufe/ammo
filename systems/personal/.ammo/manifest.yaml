@@ -1,0 +1,18 @@
+# manifest.yaml — the pack's IDENTITY and declared capabilities.
+# The kernel reads this to know the pack exists and what it can offer.
+apiVersion: ammo/v1
+kind: SystemPack
+id: personal
+name: Personal
+version: 0.0.0
+status: scaffold                # declared, not yet populated (Milestone 1)
+entrypoint: system.md
+description: >-
+  Personal AI OS entry point. Classifies a natural-language request and routes
+  it to personal-domain capabilities (briefings, investment intelligence).
+tags: [personal, briefing, investment-intelligence]
+capabilities:
+  - id: daily-briefing
+    summary: Summarize what matters to the user right now.
+  - id: investment-intel
+    summary: Market / ticker intelligence, on explicit request only.

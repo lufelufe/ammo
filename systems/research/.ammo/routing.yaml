@@ -1,0 +1,14 @@
+# routing.yaml — relevance signals and starting roles for the research pack.
+apiVersion: ammo/v1
+kind: Routing
+system: research
+priority: 50
+match:
+  intents: [research.investigate, research.synthesize]
+  keywords: [research, 연구, 조사, literature, sources, 근거, 검증]
+  examples:
+    - "이 주제 자료 조사해서 정리해줘"
+    - "이 주장 근거 검증해줘"
+default_roles: [analyst, critic, synthesizer]
+escalation:
+  on_low_confidence: add_role:critic

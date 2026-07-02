@@ -1,0 +1,25 @@
+# workflows.yaml — named, DECLARATIVE task templates this pack exposes. Each
+# describes team shape and a confidence gate. Execution is NOT implemented in
+# Milestone 1; this only fixes the shape the kernel will later run.
+apiVersion: ammo/v1
+kind: Workflows
+system: personal
+workflows:
+  - id: briefing
+    description: Produce a focused personal briefing.
+    stages:
+      - role: analyst
+        does: gather-and-filter
+      - role: synthesizer
+        does: compose-briefing
+    confidence_gate: 0.6        # below this: escalate (add critic / re-run)
+  - id: investment-intel
+    description: Market / ticker intelligence on explicit request.
+    stages:
+      - role: analyst
+        does: collect-signals
+      - role: critic
+        does: challenge-signals
+      - role: synthesizer
+        does: compose-brief
+    confidence_gate: 0.7

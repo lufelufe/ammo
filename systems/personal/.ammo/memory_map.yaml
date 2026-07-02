@@ -1,0 +1,19 @@
+# memory_map.yaml — where this pack's learning memory lives and how it feeds the
+# kernel's feedback loop (Phase 7). No store is created in Milestone 1.
+apiVersion: ammo/v1
+kind: MemoryMap
+system: personal
+namespace: personal
+stores:
+  episodic:
+    kind: run-history           # past tasks, teams used, outcomes
+    location: memory/personal/episodic
+  semantic:
+    kind: distilled-knowledge
+    location: memory/personal/semantic
+feedback:
+  # signals written after a run that reshape future team formation
+  writes: [outcome, confidence, team_composition]
+retention:
+  episodic: 90d
+  semantic: keep

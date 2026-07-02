@@ -1,0 +1,13 @@
+# workflows.yaml — declarative ops templates.
+apiVersion: ammo/v1
+kind: Workflows
+system: ops
+workflows:
+  - id: routine-run
+    description: Execute a scheduled maintenance routine and report.
+    stages:
+      - role: analyst
+        does: inspect-state
+      - role: synthesizer
+        does: compose-report
+    confidence_gate: 0.6

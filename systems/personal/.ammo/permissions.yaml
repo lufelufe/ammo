@@ -1,0 +1,20 @@
+# permissions.yaml — the SECURITY BOUNDARY for this pack: what it may read/write,
+# which vaults, tools, models, and roles it may use. No secrets are stored here;
+# adapters resolve credentials at runtime.
+apiVersion: ammo/v1
+kind: Permissions
+system: personal
+filesystem:
+  read: [systems/personal]
+  write: [memory/personal, runtime/personal]
+vaults:
+  read: []
+  write: []
+network:
+  allow: false                  # workflows opt in via web.* tools below
+tools:
+  allow: [web.search, web.fetch]
+models:
+  allow: ["*"]                  # any registered adapter; selection is the kernel's job
+roles:
+  allow: [router, analyst, synthesizer, critic]

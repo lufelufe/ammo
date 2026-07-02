@@ -1,0 +1,30 @@
+# Registry of TOOLS the kernel can grant to a team. A pack requests a subset via
+# its .ammo/permissions.yaml. Tool implementations are future milestones; this is
+# a declarative catalog of what a granted tool would mean.
+apiVersion: ammo/v1
+kind: ToolRegistry
+tools:
+  - id: web.search
+    kind: network
+    summary: Search the web.
+  - id: web.fetch
+    kind: network
+    summary: Fetch a single URL.
+  - id: fs.read
+    kind: filesystem
+    summary: Read files within permitted scopes.
+  - id: fs.write
+    kind: filesystem
+    summary: Write files within permitted scopes.
+  - id: shell.run
+    kind: process
+    summary: Run a shell command within permitted scopes.
+  - id: git
+    kind: process
+    summary: Version-control operations.
+  - id: doc.read
+    kind: filesystem
+    summary: Read documents from a bound vault.
+  - id: cron
+    kind: scheduler
+    summary: Schedule recurring work.

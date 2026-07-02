@@ -1,0 +1,20 @@
+# manifest.yaml — the pack's IDENTITY and declared capabilities.
+apiVersion: ammo/v1
+kind: SystemPack
+id: coding
+name: Coding
+version: 0.0.0
+status: scaffold
+entrypoint: system.md
+description: >-
+  Software engineering domain. Implements, reviews, and refactors code using a
+  team of implementer and reviewer roles (backed by Claude Code / Codex adapters
+  in a later milestone).
+tags: [coding, software-engineering, review]
+capabilities:
+  - id: implement
+    summary: Produce a code change for a specified task.
+  - id: review
+    summary: Adversarially review a change for correctness and quality.
+  - id: refactor
+    summary: Restructure code without changing behavior.

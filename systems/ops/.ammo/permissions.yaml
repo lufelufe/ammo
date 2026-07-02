@@ -1,0 +1,18 @@
+# permissions.yaml — security boundary for the ops pack.
+apiVersion: ammo/v1
+kind: Permissions
+system: ops
+filesystem:
+  read: [systems/ops, runtime]
+  write: [memory/ops, runtime/ops]
+vaults:
+  read: []
+  write: []
+network:
+  allow: false
+tools:
+  allow: [cron, shell.run]
+models:
+  allow: ["*"]
+roles:
+  allow: [analyst, synthesizer, critic]

@@ -1,0 +1,21 @@
+# memory_map.yaml — research memory and its ResearchVault binding.
+apiVersion: ammo/v1
+kind: MemoryMap
+system: research
+namespace: research
+stores:
+  episodic:
+    kind: run-history
+    location: memory/research/episodic
+  semantic:
+    kind: distilled-knowledge
+    location: memory/research/semantic
+vault_bindings:
+  - vault: ResearchVault
+    mount: vaults/ResearchVault
+    mode: read-write
+feedback:
+  writes: [outcome, confidence, team_composition, source_reliability]
+retention:
+  episodic: 180d
+  semantic: keep

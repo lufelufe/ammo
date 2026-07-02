@@ -1,0 +1,4 @@
+# vaults/ — Private data vaults (data)
+#
+# Sensitive private data governed by the kernel. Contents are NEVER committed
+# (gitignored); only this placeholder is tracked. No secrets in the repo.

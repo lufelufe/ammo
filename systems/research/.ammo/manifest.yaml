@@ -1,0 +1,19 @@
+# manifest.yaml — the pack's IDENTITY and declared capabilities.
+apiVersion: ammo/v1
+kind: SystemPack
+id: research
+name: Research
+version: 0.0.0
+status: scaffold
+entrypoint: system.md
+description: >-
+  Research & deep-investigation domain. Surveys sources, verifies claims, and
+  synthesizes cited findings. Binds the ResearchVault for source material.
+tags: [research, investigation, synthesis]
+capabilities:
+  - id: literature-scan
+    summary: Survey sources on a topic.
+  - id: source-verification
+    summary: Adversarially verify claims against sources.
+  - id: synthesis
+    summary: Compose a cited synthesis from verified material.

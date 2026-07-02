@@ -1,0 +1,4 @@
+# runtime/ — Ephemeral run state & logs (data)
+#
+# Mock-execution traces, run logs, and transient kernel state. Contents are
+# gitignored; only this placeholder is tracked.

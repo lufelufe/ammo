@@ -1,0 +1,20 @@
+# permissions.yaml — security boundary for the coding pack.
+# Filesystem write scope is intentionally NOT the whole machine; concrete
+# project scopes are granted per-task in a later milestone.
+apiVersion: ammo/v1
+kind: Permissions
+system: coding
+filesystem:
+  read: [systems/coding]
+  write: [memory/coding, runtime/coding]
+vaults:
+  read: []
+  write: []
+network:
+  allow: false
+tools:
+  allow: [fs.read, fs.write, shell.run, git]
+models:
+  allow: ["*"]                  # kernel picks implementer/reviewer adapters
+roles:
+  allow: [implementer, reviewer, critic]
