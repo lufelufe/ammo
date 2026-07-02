@@ -1,6 +1,7 @@
 """ammo CLI handlers — connect cmds (split from cli.py)."""
 
 import argparse
+from pathlib import Path
 import sys
 from typing import Optional, Sequence
 from ammo.connect import ConnectError, SystemConnector
@@ -47,7 +48,12 @@ def _cmd_connect(args: argparse.Namespace) -> int:
             print("Error: specify --read-only or --writable (no interactive terminal to ask).")
             return 2
 
-    connector = SystemConnector(find_ammo_root())
+    root = find_ammo_root()
+    connector = SystemConnector(root)
+    source = Path(args.path).expanduser().resolve()
+    if source == root.resolve() or root.resolve() in source.parents:
+        print("warning: the source is INSIDE the AMMO root — nested mounts are "
+              "confusing; prefer `ammo new-system` for internal packs.")
     tools = [t.strip() for t in args.tools.split(",")] if args.tools else None
     try:
         path = connector.connect(

@@ -181,3 +181,23 @@ def test_cli_connect_conflicting_flags_errors(ammo_root, external, capsys):
     code = cli.main(["connect", str(external), "--id", "proj", "--read-only", "--writable"])
     out = capsys.readouterr().out
     assert code == 2 and "not both" in out
+
+
+def test_connect_warns_on_nested_source(tmp_path, monkeypatch, capsys):
+    import os, shutil
+    root = tmp_path / "root"
+    root.mkdir()
+    os.symlink(REPO_ROOT / "registry", root / "registry")
+    shutil.copytree(REPO_ROOT / "systems", root / "systems")
+    for name in ("runtime", "memory", "vaults"):
+        (root / name).mkdir()
+    nested = root / "runtime" / "innerdir"
+    nested.mkdir()
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+
+    from ammo import cli
+
+    code = cli.main(["connect", str(nested), "--read-only"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "INSIDE the AMMO root" in out            # warned, still proceeded

@@ -164,6 +164,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             )
 
     print(f"run_id: {run_id}")
+    print(f"judge it (feeds learning): ammo feedback {run_id} good|bad")
     print(f"output: {path}")
     print(f"mode: {mode}")
     if args.real and getattr(factory, "resolutions", None):

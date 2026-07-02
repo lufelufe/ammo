@@ -130,6 +130,16 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — closing sweep (all remaining engineering backlog).** Recurring
+  negative confidence reasons are recorded per run and aggregated by system
+  evaluation into "recurring issue (n/N runs): ..." suggestions; dream's
+  journal insights now name the best model per seat (turns joined with run
+  confidences); exploration schedules anneal per SEAT with a convergence
+  readout in `ammo efficiency`; the infra test runner became a first-class
+  graph node (FIXED_MODELS emptied); a Linux bwrap isolation route is shaped
+  (unit-tested, unverified on real Linux); `aggregate_confidence` renamed to
+  `self_reported_mean` (informational only); `connect` warns on nested
+  sources; runs print a feedback hint so ground truth accumulates.
 - **Delivery — workflows.yaml stage routing.** A pack's declared workflows now
   drive team formation: a workflow whose normalized id EXACTLY matches the
   task's intent or a tag routes the team through its stages (stage roles

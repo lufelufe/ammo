@@ -94,7 +94,7 @@ def test_run_summary_and_input_contents(tmp_path, analyzer, graph):
     assert summary["created_at"] == NOW.isoformat()
     assert summary["selected_system"] == "personal"
     assert summary["mode"] == "mock"
-    assert "aggregate_confidence" in summary
+    assert "self_reported_mean" in summary
     inp = json.loads((path / "input.json").read_text(encoding="utf-8"))
     assert inp["input"] == "오늘 할 일 정리해줘"
 

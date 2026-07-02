@@ -43,7 +43,7 @@ def test_single_member_execution(analyzer, graph):
     assert len(result.responses) == 1
     assert result.responses[0].role == "fast_worker"
     assert result.final_output
-    assert 0.0 <= result.aggregate_confidence <= 1.0
+    assert 0.0 <= result.self_reported_mean <= 1.0
 
 
 def test_multi_member_execution_matches_plan(analyzer, graph):
@@ -86,7 +86,7 @@ def test_result_to_dict_shape(analyzer, graph):
     plan, task = _plan(analyzer, graph, "오늘 할 일 정리해줘")
     d = Runner(_mock_factory).run(plan, task).to_dict()
     for key in ["task", "mode", "selected_system", "team", "steps",
-                "risk_controls", "expected_outputs", "final_output", "aggregate_confidence"]:
+                "risk_controls", "expected_outputs", "final_output", "self_reported_mean"]:
         assert key in d
 
 

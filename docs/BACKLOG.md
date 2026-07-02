@@ -27,11 +27,9 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 ## Deferred risks / cleanups (by area)
 
 ### Memory consolidation (`ammo dream` shipped — see docs/MEMORY_DREAM.md)
-- Quantitative pass (rebuild/dedup/prune/journal-distill) is implemented. Open:
-  - **Doc-layer dream is manual** — prose consolidation needs review; not automated.
-  - `insights.md` distillation is counts only; recurring corrections / best model
-    per role would be richer.
-  - Journal distillation archives by count, no semantic merge of archived turns.
+- **Doc-layer dream is manual** — prose consolidation needs review; not automated.
+- Journal distillation archives by count; no semantic merge of archived turns
+  (insights now include per-model quality + best-for-seat).
 
 ### Environment / tooling
 - Standardize the run environment: system Python 3.14 lacks pytest/PyYAML; we use
@@ -90,8 +88,8 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - `ollama run {model}` remains unverified (ollama not installed on this machine).
 - **Tool execution — still open** (enforcement, soft sandbox, and macOS
   seatbelt OS-isolation are shipped, see ROADMAP delivery log):
-  - **Linux isolation** not implemented (bubblewrap/namespaces candidate) —
-    non-mac machines fall back to the tiny allowlist.
+  - **Linux bwrap route is shaped but UNVERIFIED on a real Linux box** —
+    behavioral tests needed there before trusting it.
   - Seatbelt residuals: Apple marks `sandbox-exec` deprecated (still widely
     used, e.g. by Codex CLI); no CPU/memory limits; unix-domain sockets are
     not blocked (only `network*`).
@@ -104,8 +102,8 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   in the profile (`gpt-5`) is editable data — match it to the actual plan.
   Pricing labels are per-model, so a subscription-priced model reached via the
   paid API is still labeled `subscription` in the cost report.
-- Model ids in the provider catalog are the mock ids; map them to real model
-  names when adapters are finalized.
+- Node ids map to vendor model names via profile data (CLI `--model` args +
+  `api_models`); graph ids themselves stay AMMO-neutral by design.
 
 ### Per-system optimization & evaluation (M13; spec wiring shipped in M19)
 - Spec loading keys off `task.candidate_systems[0]` — if a binding redirects
@@ -113,9 +111,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - `adopt` refines at **file granularity** (adds missing files, preserves
   existing). Field-level refine (merge missing keys into a partially-filled file)
   is deferred.
-- Evaluation reads memory keyed by `selected_system`; recurring confidence
-  *reasons* (e.g. "no real tests") aren't aggregated yet — store/aggregate them
-  for sharper improvement suggestions.
 
 ### System Connection (Phase 8 v0 / M12)
 - A connected pack's `manifest.source_path` is an **absolute, machine-local**
@@ -123,13 +118,11 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   gitignore convention or a per-machine mounts file if connected packs should
   stay out of version control.
 - No content sync/indexing of the mounted directory yet (just a reference).
-- `connect` does not warn if the source path is inside the AMMO repo (nested).
 
 ### Memory Feedback (Phase 7 — recording M10, guidance M11)
 - Loop is closed for team formation (per-model + synergy bonus). Still open:
-  - Exploration ships as deterministic annealed epsilon-greedy; remaining:
-    per-SEAT schedules (currently per-tag) and convergence reporting in
-    `ammo efficiency`.
+  - Exploration: per-seat annealed epsilon schedules + convergence readout
+    shipped; epsilon constants are hand-tuned (calibrate with feedback data).
   - **Wholesale team recall** was intentionally NOT done (recall-as-per-slot
     instead). Revisit only if per-slot proves insufficient.
 - "success" is proxied by confidence >= 0.5 (mock). Needs real outcome +
@@ -157,8 +150,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - `runtime/**` is gitignored, so run history is local-only (by design).
 
 ### Mock Execution / Adapters (Phase 5 v0 + adapter contract)
-- `aggregate_confidence` (naive self-report mean) still exists as a field next
-  to the real evidence-based report — remove or rename to avoid confusion.
 - Execution is a fixed sequential pipeline (member→member). Real execution may
   need parallel fan-out and retries. (Tool execution itself is shipped.)
 - MockAdapter echoes the user's raw input verbatim (may be non-English) inside
@@ -169,9 +160,9 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - Workflow matching is exact-id-vs-intent/tags only — no semantic matching, and
   a pack can't yet declare per-workflow tools/risk controls (they inherit the
   domain template's).
-- Team positions (planner/builder/critic/…) are a second role vocabulary on top
-  of registry roles; `local_test_runner` is a synthetic infra id not in the
-  graph. Consider unifying position→role mapping and registering infra runners.
+- Team positions (planner/builder/critic/…) remain a naming layer over registry
+  roles (infra runner is now a first-class graph node; stage-role positions
+  registered).
 
 ### Capability Graph (Phase 3 v0)
 - Scoring weights are hand-tuned; ties broken by id. Revisit when the fleet or

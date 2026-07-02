@@ -28,7 +28,9 @@ class ExecutionResult:
         return self.responses[-1].output if self.responses else ""
 
     @property
-    def aggregate_confidence(self) -> float:
+    def self_reported_mean(self) -> float:
+        """Mean of the models' SELF-reported confidences — informational only;
+        the trusted score is the evidence-based ConfidenceEngine report."""
         if not self.responses:
             return 0.0
         return round(sum(r.confidence for r in self.responses) / len(self.responses), 3)
@@ -43,5 +45,5 @@ class ExecutionResult:
             "risk_controls": self.plan.risk_controls,
             "expected_outputs": self.plan.expected_outputs,
             "final_output": self.final_output,
-            "aggregate_confidence": self.aggregate_confidence,
+            "self_reported_mean": self.self_reported_mean,
         }
