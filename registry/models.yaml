@@ -128,3 +128,20 @@ models:
     enabled: true
     status: real
     credentials_env: []
+
+  # Infrastructure runner — a harness, not an LLM. Registered here so the
+  # test_runner seat resolves through the same capability scoring as everyone
+  # else (its exclusive test_execution capability + role make it the only
+  # qualified candidate); previously a synthetic FIXED_MODELS id.
+  - id: local_test_runner
+    provider: infra
+    adapter: ammo.adapters.local
+    roles: [test_runner]
+    capabilities: [test_execution]
+    context_window: 1
+    cost_class: cheap
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: infra
+    credentials_env: []

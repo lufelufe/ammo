@@ -29,6 +29,7 @@ EXPECTED_MODELS = {
     "fast_worker_mock",
     "claude_haiku_fast",
     "claude_sonnet_worker",
+    "local_test_runner",
 }
 
 

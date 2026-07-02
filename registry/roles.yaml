@@ -20,3 +20,5 @@ roles:
     summary: >-
       Combine advisory outputs from several members/models into one result
       (Mixture-of-Agents topology; adopted from Hermes MoA).
+  - id: test_runner
+    summary: Execute the test suite and report structured results (infrastructure, not an LLM).

@@ -25,12 +25,13 @@ POSITION_SPEC = {
     "analyst": {"capability": "analysis", "role": "analyst"},
     "implementer": {"capability": "coding", "role": "implementer"},
     "reviewer": {"capability": "review", "role": "reviewer"},
+    "test_runner": {"capability": "test_execution", "role": "test_runner"},
 }
 
-# positions that are infrastructure, not LLMs — resolved to a fixed id.
-FIXED_MODELS = {
-    "test_runner": "local_test_runner",
-}
+# legacy escape hatch for infra positions pinned to a fixed id — now empty:
+# infra runners are registered in the capability graph and win their seat by
+# exclusive capability/role instead of by fiat.
+FIXED_MODELS = {}
 
 TEMPLATES = {
     "simple_fast": ["fast_worker"],
