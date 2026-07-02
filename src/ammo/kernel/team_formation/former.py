@@ -1,0 +1,224 @@
+"""Dynamic Team Formation (v0 + memory guidance).
+
+Given a TaskVector and a CapabilityGraph, choose a team template, resolve each
+position to a concrete model (scoring the graph, preferring diversity), and
+assemble an ExecutionPlan. Nothing is executed — this only plans.
+
+Optionally consults a memory advisor: recorded performance nudges model choice
+toward what has worked ("memory advises, the kernel decides"). The nudge is
+bounded and only applies to models already qualified for a position, so it never
+overrides capability/risk/template guardrails.
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional, Protocol, Set, Tuple
+
+from ammo.kernel.capability_graph.graph import CapabilityGraph
+from ammo.kernel.task_understanding.task_vector import TaskVector
+from ammo.kernel.team_formation import templates as tpl
+from ammo.kernel.team_formation.execution_plan import ExecutionPlan, TeamMember
+
+
+class ModelMemory(Protocol):
+    """A read-only source of performance bias for model selection."""
+
+    def bonus(self, model_id: str, role: str, tag: str,
+              objective: str = "balanced") -> Tuple[float, List[str]]:
+        ...
+
+
+OBJECTIVES = ("balanced", "performance", "cost", "speed")
+
+
+class TeamFormer:
+    def __init__(self, graph: CapabilityGraph, memory: Optional[ModelMemory] = None,
+                 binding=None, objective: str = "balanced"):
+        self.graph = graph
+        self.memory = memory
+        self.binding = binding  # optional per-system Binding (constrains selection)
+        self.objective = objective if objective in OBJECTIVES else "balanced"
+
+    # -- public -------------------------------------------------------------
+
+    def form(self, task: TaskVector) -> ExecutionPlan:
+        template = self._select_template(task)
+        positions = list(tpl.TEMPLATES[template])
+        if template == "coding_standard" and task.needs_tests:
+            positions.append("test_runner")
+
+        team, notes = self._assign_models(positions, task)
+        roles = [m.role for m in team]
+
+        return ExecutionPlan(
+            selected_system=(task.candidate_systems[0] if task.candidate_systems else None),
+            selected_team=team,
+            roles=roles,
+            reasoning_summary=(
+                f"Formed a '{template}' team ({len(team)} member(s)) for a "
+                f"{task.risk}-risk {task.domain}/{task.intent} task"
+                f"{' (memory-guided)' if self.memory and notes else ''}."
+            ),
+            required_tools=self._tools(template, task, roles),
+            risk_controls=self._risk_controls(template, task),
+            expected_outputs=self._expected_outputs(template, task, roles),
+            notes=notes,
+        )
+
+    # -- template selection -------------------------------------------------
+
+    def _select_template(self, task: TaskVector) -> str:
+        if task.domain == "ops":
+            return "ops_incident"
+        if task.domain == "coding":
+            return "coding_high_risk" if task.risk == "high" else "coding_standard"
+        if task.domain == "investment":
+            return "investment_research"
+        if task.domain == "research":
+            return "research"
+        if task.risk == "low" and task.complexity in {"low", "medium"}:
+            return "simple_fast"
+        return "generalist"
+
+    # -- model assignment ---------------------------------------------------
+
+    def _assign_models(self, positions: List[str], task: TaskVector) -> Tuple[List[TeamMember], List[str]]:
+        used: Set[str] = set()
+        team: List[TeamMember] = []
+        notes: List[str] = []
+        for position in positions:
+            model_id, note = self._pick_model(position, task, used)
+            team.append(TeamMember(role=position, model=model_id))
+            used.add(model_id)
+            if note:
+                notes.append(note)
+        return team, notes
+
+    def _static_score(self, node, spec, task: TaskVector, used: Set[str]) -> int:
+        score = 0
+        if spec.get("capability") and spec["capability"] in node.capabilities:
+            score += 3
+        if spec.get("role") and spec["role"] in node.roles:
+            score += 3
+        if node.warm_status == "warm":
+            score += 1
+        if task.risk == "high" and node.cost_class == "premium":
+            score += 1
+        if task.risk == "low" and node.cost_class == "cheap":
+            score += 1
+        if task.complexity == "low" and node.latency_class == "fast":
+            score += 1
+
+        # objective profile: same task, different optimum by what the user values
+        if self.objective == "cost":
+            if node.cost_class == "cheap":
+                score += 2
+            elif node.cost_class == "premium":
+                score -= 1
+        elif self.objective == "speed":
+            if node.latency_class == "fast":
+                score += 2
+            if node.warm_status == "warm":
+                score += 1
+        elif self.objective == "performance":
+            if node.cost_class == "premium":
+                score += 2
+
+        if node.id in used:
+            score -= 2  # prefer a different model for each seat
+        return score
+
+    def _memory_tag(self, task: TaskVector) -> str:
+        # prefer the selected system (per-directory memory), else the domain
+        return task.candidate_systems[0] if task.candidate_systems else task.domain
+
+    def _candidates(self):
+        """Enabled nodes, restricted to the bound model set when a binding exists."""
+        nodes = self.graph.enabled()
+        if self.binding and self.binding.model_ids:
+            allowed = set(self.binding.model_ids)
+            restricted = [n for n in nodes if n.id in allowed]
+            if restricted:  # fall back to all if the binding can't be honored
+                return restricted
+        return nodes
+
+    def _pick_model(self, position: str, task: TaskVector, used: Set[str]) -> Tuple[str, Optional[str]]:
+        if position in tpl.FIXED_MODELS:
+            return tpl.FIXED_MODELS[position], None
+
+        # an explicit bound team pins this role's model directly
+        if self.binding:
+            bound = self.binding.team_map.get(position)
+            if bound:
+                return bound, f"{position}: bound to {bound}"
+
+        spec = tpl.POSITION_SPEC[position]
+        static = []
+        final = []
+        for node in self._candidates():
+            base = self._static_score(node, spec, task, used)
+            static.append((base, node.id))
+
+            memory_bonus = 0.0
+            reasons: List[str] = []
+            # guardrail: memory only nudges models already qualified for the seat,
+            # and the bonus (<=2) can never outweigh a capability match (+3).
+            qualified = (
+                (spec.get("capability") and spec["capability"] in node.capabilities)
+                or (spec.get("role") and spec["role"] in node.roles)
+            )
+            if self.memory and qualified:
+                memory_bonus, reasons = self.memory.bonus(
+                    node.id, position, self._memory_tag(task), objective=self.objective
+                )
+            final.append((base + memory_bonus, node.id, reasons))
+
+        if not final:
+            return "unassigned", None
+
+        static.sort(key=lambda item: (-item[0], item[1]))
+        final.sort(key=lambda item: (-item[0], item[1]))
+        static_pick = static[0][1]
+        picked_score, picked_id, picked_reasons = final[0]
+
+        note: Optional[str] = None
+        if self.memory and picked_reasons:
+            if picked_id != static_pick:
+                note = f"{position}: {picked_id} over {static_pick} — {'; '.join(picked_reasons)}"
+            else:
+                note = f"{position}: {picked_id} — {'; '.join(picked_reasons)}"
+        return picked_id, note
+
+    # -- derived plan fields ------------------------------------------------
+
+    def _tools(self, template: str, task: TaskVector, roles: List[str]) -> List[str]:
+        tools = set(task.required_tools) | set(tpl.TEMPLATE_TOOLS.get(template, []))
+        if "test_runner" in roles:
+            tools.add("shell.run")
+        ordered = [t for t in tpl.TOOL_ORDER if t in tools]
+        ordered += sorted(t for t in tools if t not in tpl.TOOL_ORDER)
+        return ordered
+
+    def _risk_controls(self, template: str, task: TaskVector) -> List[str]:
+        controls = list(tpl.TEMPLATE_RISK_CONTROLS.get(template, []))
+        if task.needs_tests and "require_tests" not in controls:
+            controls.append("require_tests")
+        controls += tpl.BASE_RISK_CONTROLS
+        # de-duplicate, preserve order
+        seen: Set[str] = set()
+        return [c for c in controls if not (c in seen or seen.add(c))]
+
+    def _expected_outputs(self, template: str, task: TaskVector, roles: List[str]) -> List[str]:
+        if template in tpl.TEMPLATE_OUTPUTS:
+            return list(tpl.TEMPLATE_OUTPUTS[template])
+        if template in {"coding_high_risk", "coding_standard"}:
+            outputs = ["code_diff"]
+            if "test_runner" in roles:
+                outputs.append("test_results")
+            return outputs
+        return [task.output_type]
+
+
+def form_team(task: TaskVector, graph: CapabilityGraph) -> ExecutionPlan:
+    """Convenience wrapper."""
+    return TeamFormer(graph).form(task)
