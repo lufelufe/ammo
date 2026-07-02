@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# AMMO .gitignore
+# Rule 4: never store API keys, OAuth tokens, secrets, or credentials.
+# ---------------------------------------------------------------------------
+
+# Secrets & credentials
+*.key
+*.pem
+*.p12
+*.pfx
+*.env
+.env
+.env.*
+*.secret
+*.secrets
+secrets/
+credentials/
+*credentials*
+*token*
+*.token
+*apikey*
+*api_key*
+.netrc
+
+# Vault contents are private. The folder STRUCTURE may be tracked via
+# placeholders, but the actual contents are never committed.
+vaults/**
+!vaults/.gitkeep
+!vaults/*/
+!vaults/*/.gitkeep
+
+# Runtime logs, state, and ephemeral data
+runtime/**
+!runtime/.gitkeep
+*.log
+logs/
+
+# Memory contents may hold private feedback/state — keep the dir, ignore data
+memory/**
+!memory/.gitkeep
+
+# System pack private data (structure tracked, data ignored)
+systems/**/data/
+systems/**/private/
+
+# Role-bound working directories are runtime data (structure per role, not model)
+systems/**/roles/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# Reference material (studied, not built) — e.g. vendored upstream repos
+ref/
+
+# Claude Code local settings (machine-specific)
+.claude/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
