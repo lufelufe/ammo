@@ -134,6 +134,12 @@ route (see `docs/BACKLOG.md`).
   symlinked `systems/` leaks role dirs and bindings into the real repo.
 - **Assert invariants, not snapshots.** No change-detector tests (don't freeze
   model lists, counts, or config numbers that legitimately change).
+- **UI has three test layers:** (1) capsys output assertions (content),
+  (2) **real-TTY interactive tests** via pexpect (`tests/test_ui_tty.py` —
+  prompts appear, answers steer, outcomes match), (3) a `--help` surface net
+  asserting every registered command is listed. Host-shim UX (saying "ammo"
+  inside Claude Code/Codex) stays a manual smoke: summon once after changing
+  the Summon section here or `docs/SUMMON.md`.
 - After a change, verify the repo stays clean: no `runtime/runs`,
   `memory/ammo.sqlite`, `systems/*/roles/`, or stray packs left behind.
 
