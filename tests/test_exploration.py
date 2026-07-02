@@ -87,3 +87,25 @@ def test_nudge_targets_only_the_least_tried(graph, analyzer):
     rookie, why = advisor.bonus("claude_a_planner", "researcher", "research")
     assert rookie > veteran                           # least-tried outbids
     assert any("exploration run" in r for r in why)
+
+
+def test_per_seat_schedule_from_recorded_signatures(tmp_path):
+    """A seat with its own run history anneals on ITS experience, not the tag's."""
+    import os, shutil
+    from ammo.memory import MemoryStore
+
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "memory").mkdir()
+    with MemoryStore.open(root) as s:
+        # 40 runs seat the researcher; the synthesizer seat appears in only 5
+        for i in range(40):
+            sig = "researcher:claude_a_planner" + ("+synthesizer:fast_worker_mock" if i < 5 else "")
+            s.record_run(run_id=f"s{i}", timestamp=f"t{i:02d}", domain="research", tags=[],
+                         selected_system="research", model_ids=["claude_a_planner"],
+                         team_signature=sig, confidence_score=0.7)
+        advisor = MemoryAdvisor.from_store(s)
+    _, eps_res, n_res = advisor.exploration_state("research", "researcher")
+    _, eps_syn, n_syn = advisor.exploration_state("research", "synthesizer")
+    assert (n_res, n_syn) == (40, 5)
+    assert eps_syn > eps_res           # the young seat still explores eagerly

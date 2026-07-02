@@ -60,6 +60,7 @@ class MemoryAdvisor:
         # exploration: a small nudge to under-tried qualified models so a stuck
         # winner can be dethroned. Deterministic (based on attempt counts).
         self._explore = max(0.0, explore)
+        self._seat_counts = {}   # (tag, role) -> attempts; per-seat schedule
 
     @classmethod
     def from_store(cls, store, explore: float = 0.0) -> "MemoryAdvisor":
@@ -74,7 +75,9 @@ class MemoryAdvisor:
                 _success_rate(current), current["average_confidence"]
             ):
                 best_teams[tag] = row
-        return cls(model_stats, best_teams, explore=explore)
+        advisor = cls(model_stats, best_teams, explore=explore)
+        advisor._seat_counts = store.seat_attempt_counts()
+        return advisor
 
     def _economy_term(self, model_id: str, tag: str, metric: str) -> Tuple[float, List[str]]:
         """0..ECONOMY_WEIGHT bonus for being cheap/light relative to peers in this tag."""
@@ -103,10 +106,14 @@ class MemoryAdvisor:
                   for (m, t), s in self._model_stats.items() if t == tag]
         return max(counts) if counts else 0
 
-    def exploration_state(self, tag: str):
+    def exploration_state(self, tag: str, role: str = None):
         """(active, epsilon, n): deterministic schedule — the (period-1)-th of
-        every ~1/ε attempts in this tag is an exploration run."""
-        n = self._tag_attempts(tag)
+        every ~1/ε attempts is an exploration run. With `role`, the schedule
+        keys on that SEAT's own experience (falls back to tag totals when the
+        seat has no recorded runs yet)."""
+        n = self._seat_counts.get((tag, role), 0) if role else 0
+        if not n:
+            n = self._tag_attempts(tag)
         epsilon = EPSILON_BASE / (1 + n / EPSILON_HALF_LIFE)
         period = max(1, round(1 / epsilon))
         active = n > 0 and n % period == period - 1
@@ -158,7 +165,7 @@ class MemoryAdvisor:
         # epsilon exploration: on scheduled runs, candidates tried FEWER times
         # than the incumbent (the tag's max) outbid it — the stuck winner
         # itself never receives the nudge, so it can be dethroned
-        active, epsilon, n = self.exploration_state(tag)
+        active, epsilon, n = self.exploration_state(tag, role)
         if active and attempts < self._max_tag_attempts(tag):
             total += EXPLORE_NUDGE
             reasons.append(

@@ -61,6 +61,20 @@ def _cmd_efficiency(args: argparse.Namespace) -> int:
               f"tokens {m.get('average_tokens') or 0:<7} cost ${m.get('average_cost') or 0:.4f} "
               f" eff {eff_str}")
 
+    # exploration convergence per tag (deterministic epsilon schedule)
+    from ammo.memory import MemoryAdvisor
+
+    with MemoryStore(root / "memory" / "ammo.sqlite") as memory:
+        advisor = MemoryAdvisor.from_store(memory)
+    tags = sorted({m["task_tag"] for m in models})
+    if tags:
+        print("Exploration (annealed epsilon):")
+        for tag in tags:
+            active, epsilon, n = advisor.exploration_state(tag)
+            period = max(1, round(1 / epsilon))
+            status = "explore NOW" if active else f"next at attempt ~{((n // period) + 1) * period + period - 1}"
+            print(f"  [{tag}] ε={epsilon:.3f}  attempts={n}  {status}")
+
     if teams:
         print("Team combinations:")
         for t in sorted(teams, key=lambda t: (t["task_tag"], -(t["average_confidence"] or 0))):

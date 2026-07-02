@@ -271,6 +271,21 @@ class MemoryStore:
             "average_confidence": round(b["sum"] / b["attempts"], 3),
         }
 
+    def seat_attempt_counts(self) -> Dict[tuple, int]:
+        """(tag, role) -> how many recorded runs seated that role (from team
+        signatures) — the per-seat experience the exploration schedule uses."""
+        rows = self.conn.execute(
+            "SELECT selected_system, domain, team_signature FROM runs"
+        ).fetchall()
+        counts: Dict[tuple, int] = {}
+        for r in rows:
+            tag = r["selected_system"] or r["domain"] or "general"
+            for token in (r["team_signature"] or "").split("+"):
+                if ":" in token:
+                    role = token.split(":", 1)[0]
+                    counts[(tag, role)] = counts.get((tag, role), 0) + 1
+        return counts
+
     def runs_for_system(self, system_id: str) -> List[Dict[str, Any]]:
         rows = self.conn.execute(
             "SELECT * FROM runs WHERE selected_system=? ORDER BY timestamp DESC", (system_id,)
