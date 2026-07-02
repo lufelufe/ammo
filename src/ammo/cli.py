@@ -1174,6 +1174,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
            if economics["unpriced_models"] else "")
     )
     print(f"confidence: {report.confidence_score} ({report.confidence_band})")
+    # triage: failure signals become diagnoses with concrete fixes
+    from ammo.triage import diagnose_run
+
+    for diagnosis in diagnose_run(result.responses, economics=economics,
+                                  system_id=plan.selected_system, mode=result.mode):
+        print(diagnosis.to_text())
     # limits.yaml: the system's own acceptance threshold
     gate = (pack.limits or {}).get("confidence_gate") if pack else None
     if gate is not None and report.confidence_score < float(gate):
@@ -1254,7 +1260,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help()
         return 0
 
-    return func(args)
+    try:
+        return func(args)
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception as exc:  # triage: diagnose instead of dumping a traceback
+        from ammo.triage import diagnose_exception
+
+        print(diagnose_exception(exc).to_text(), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":  # pragma: no cover

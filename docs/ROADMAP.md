@@ -130,6 +130,15 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — Triage: self-diagnosis with proposed fixes.** Any unhandled CLI
+  error becomes a diagnosis card (problem / likely cause / concrete fixes)
+  instead of a traceback — rules match the exception FAMILY (MRO), so wrapped
+  errors like ValidationError(RegistryError) or sqlite3 subclasses hit the
+  right remedy (including "restore the dream backup"). After every run,
+  failure signals (invocations that kept failing, gate-denied tools, unpriced
+  models, all-estimated usage in real mode) print actionable diagnoses naming
+  the exact file or command to fix. Unknown errors still get a generic card —
+  nothing is swallowed silently.
 - **Delivery M19 — Spec wiring: the optimization specs govern the engines.**
   `preferences.yaml` → formation (default_template override; qualified-only
   `model_bias` clamped below a capability match; `preferred_capabilities`

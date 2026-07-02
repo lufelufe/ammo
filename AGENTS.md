@@ -42,6 +42,7 @@ understand → capability graph → form team → (mock) execute → confidence 
 |-------|--------|-----|
 | Summon / bootstrap | `src/ammo/bootstrap.py`, `src/ammo/config.py` | `start`, `status` |
 | Memory consolidation | `src/ammo/dream/` | `dream [--apply]` |
+| Self-diagnosis (triage) | `src/ammo/triage.py` | automatic: unhandled errors + run failure signals become diagnosis cards |
 | Task understanding | `src/ammo/kernel/task_understanding/` | `analyze` |
 | Capability graph | `src/ammo/kernel/capability_graph/` | `list-models`, `score-models` |
 | Team formation | `src/ammo/kernel/team_formation/` | `plan-team` |
