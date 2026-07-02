@@ -1,0 +1,55 @@
+# PricingBook — per-model token prices used to ESTIMATE cost per run.
+#
+# Estimation policy (user directive): cost is estimated from token usage
+# regardless of how the model is reached — `billing: api` means real spend,
+# `billing: subscription` means an EQUIVALENT VALUE estimate (no extra cash
+# outlay), `billing: local` means compute-only (priced 0 here).
+#
+# Prices are USD per 1M tokens. `source: estimate` entries are placeholders —
+# update with `ammo pricing set <model> <in> <out>` or via a PriceSource module
+# (see src/ammo/economics/pricing.py). No secrets here.
+apiVersion: ammo/v1
+kind: PricingBook
+currency: USD
+as_of: "2026-07-02"
+models:
+  - id: claude_a_planner
+    billing: subscription
+    price_per_mtok_in: 5.00      # Claude Opus 4.8 public API price (equivalent value)
+    price_per_mtok_out: 25.00
+    source: anthropic-public-pricing
+  - id: claude_b_critic
+    billing: subscription
+    price_per_mtok_in: 5.00
+    price_per_mtok_out: 25.00
+    source: anthropic-public-pricing
+  - id: codex_builder
+    billing: subscription
+    price_per_mtok_in: 2.00      # PLACEHOLDER estimate — update when confirmed
+    price_per_mtok_out: 8.00
+    source: estimate
+  - id: qwen_planner_mock
+    billing: local
+    price_per_mtok_in: 0
+    price_per_mtok_out: 0
+    source: local-compute
+  - id: kimi_coder_mock
+    billing: local
+    price_per_mtok_in: 0
+    price_per_mtok_out: 0
+    source: local-compute
+  - id: gpt_oss_critic_mock
+    billing: local
+    price_per_mtok_in: 0
+    price_per_mtok_out: 0
+    source: local-compute
+  - id: fast_worker_mock
+    billing: local
+    price_per_mtok_in: 0
+    price_per_mtok_out: 0
+    source: local-compute
+  - id: local_test_runner
+    billing: local
+    price_per_mtok_in: 0
+    price_per_mtok_out: 0
+    source: local-compute
