@@ -189,3 +189,27 @@ def test_orphan_sandboxes_are_pruned_referenced_kept(root):
     assert "orphan1" in report.sandboxes_pruned
     assert not (sandbox_root / "orphan1").exists()
     assert (sandbox_root / "keepme").is_dir()          # referenced -> survives
+
+
+def test_insights_name_the_best_model_for_the_seat(root):
+    # journal turns cross-referenced with run confidences -> per-model quality
+    role_dir = root / "systems" / "coding" / "roles" / "builder"
+    role_dir.mkdir(parents=True)
+    with MemoryStore.open(root) as s:
+        for i in range(30):
+            model = "codex_builder" if i % 2 else "kimi_coder_mock"
+            conf = 0.9 if model == "codex_builder" else 0.3
+            s.record_run(run_id=f"j{i}", timestamp=f"t{i:02d}", domain="coding", tags=[],
+                         selected_system="coding", model_ids=[model],
+                         team_signature=f"builder:{model}", confidence_score=conf)
+    with (role_dir / "journal.jsonl").open("w", encoding="utf-8") as fh:
+        for i in range(30):
+            model = "codex_builder" if i % 2 else "kimi_coder_mock"
+            fh.write(json.dumps({"run_id": f"j{i}", "timestamp": f"t{i:02d}",
+                                 "model": model, "output": f"work {i}"}) + "\n")
+
+    DreamEngine(root, journal_keep=20).apply()
+    insights = (role_dir / "insights.md").read_text(encoding="utf-8")
+    assert "best for this seat so far: codex_builder" in insights
+    assert "avg confidence 0.90" in insights
+    assert "kimi_coder_mock: avg confidence 0.30" in insights

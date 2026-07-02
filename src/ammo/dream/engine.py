@@ -170,7 +170,7 @@ class DreamEngine:
         known = self._known_models()
         if not db.is_file():
             report = self.plan()
-            self._distill_journals(report)
+            self._distill_journals(report, {})
             report.applied = True
             return report
 
@@ -196,12 +196,27 @@ class DreamEngine:
         for name in report.sandboxes_pruned:
             shutil.rmtree(sandbox_root / name, ignore_errors=True)
 
-        self._distill_journals(report)
+        self._distill_journals(report, self._confidence_map())
         report.applied = True
         return report
 
-    def _distill_journals(self, report: DreamReport) -> None:
+    def _confidence_map(self) -> Dict[str, float]:
+        """run_id -> confidence, for enriching journal insights (best-effort:
+        pruned runs simply drop out of the quality sample)."""
+        db = self._db_path()
+        if not db.is_file():
+            return {}
+        with MemoryStore(db) as store:
+            rows = store.conn.execute(
+                "SELECT run_id, confidence_score FROM runs"
+            ).fetchall()
+        return {r["run_id"]: r["confidence_score"] for r in rows
+                if r["confidence_score"] is not None}
+
+    def _distill_journals(self, report: DreamReport,
+                          confidence: Dict[str, float] = None) -> None:
         # invoked from apply() only — plan() never mutates journals
+        confidence = confidence or {}
         for j in report.journals:
             journal_path: Path = j["path"]
             lines = [l for l in journal_path.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -214,18 +229,33 @@ class DreamEngine:
             keep = entries[-self.journal_keep:]
             distilled = entries[: -self.journal_keep] if len(entries) > self.journal_keep else []
             models: Dict[str, int] = {}
+            quality: Dict[str, list] = {}
             for e in entries:
-                models[e.get("model", "?")] = models.get(e.get("model", "?"), 0) + 1
+                model = e.get("model", "?")
+                models[model] = models.get(model, 0) + 1
+                score = confidence.get(e.get("run_id"))
+                if score is not None:
+                    quality.setdefault(model, []).append(score)
             first_ts = entries[0].get("timestamp", "") if entries else ""
             last_ts = entries[-1].get("timestamp", "") if entries else ""
-            insights = (
-                f"# {j['role']} — distilled insights ({j['system']})\n\n"
+            lines = [
+                f"# {j['role']} — distilled insights ({j['system']})",
+                "",
                 f"- {len(entries)} turn(s) seen ({first_ts} .. {last_ts}); "
-                f"{len(distilled)} archived by dream, last {len(keep)} kept in the journal.\n"
-                f"- models that filled this role: "
-                + ", ".join(f"{m} ({c})" for m, c in sorted(models.items(), key=lambda x: -x[1]))
-                + "\n"
-            )
+                f"{len(distilled)} archived by dream, last {len(keep)} kept in the journal.",
+                "- models that filled this role: "
+                + ", ".join(f"{m} ({c})" for m, c in sorted(models.items(), key=lambda x: -x[1])),
+            ]
+            scored = {m: sum(v) / len(v) for m, v in quality.items() if v}
+            if scored:
+                best = max(scored, key=scored.get)
+                lines.append(
+                    f"- best for this seat so far: {best} "
+                    f"(avg confidence {scored[best]:.2f} over {len(quality[best])} scored turn(s))"
+                )
+                for m, avg in sorted(scored.items(), key=lambda kv: -kv[1]):
+                    lines.append(f"  - {m}: avg confidence {avg:.2f} ({len(quality[m])} scored)")
+            insights = "\n".join(lines) + "\n"
             (journal_path.parent / "insights.md").write_text(insights, encoding="utf-8")
             journal_path.write_text(
                 "\n".join(json.dumps(e, ensure_ascii=False) for e in keep) + "\n",
