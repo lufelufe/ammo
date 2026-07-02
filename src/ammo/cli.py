@@ -342,6 +342,19 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Journal entries to keep per role (default 20).")
     dream_parser.set_defaults(func=_cmd_dream)
 
+    feedback_parser = subparsers.add_parser(
+        "feedback", help="Record your verdict on a run (ground truth for learning).",
+    )
+    feedback_parser.add_argument("run_id", metavar="RUN_ID")
+    feedback_parser.add_argument("verdict", choices=["good", "bad"])
+    feedback_parser.add_argument("--note", default="", help="Optional short reason.")
+    feedback_parser.set_defaults(func=_cmd_feedback)
+
+    calibrate_parser = subparsers.add_parser(
+        "calibrate", help="Compare confidence scores against user feedback (calibration).",
+    )
+    calibrate_parser.set_defaults(func=_cmd_calibrate)
+
     efficiency_parser = subparsers.add_parser(
         "efficiency", help="Quality-per-cost report from recorded runs.",
     )
@@ -658,6 +671,62 @@ def _cmd_promote(args: argparse.Namespace) -> int:
         print(f"promote: {exc}", file=sys.stderr)
         return 1
     print(report.to_text())
+    return 0
+
+
+def _cmd_feedback(args: argparse.Namespace) -> int:
+    root = find_ammo_root()
+    db = root / "memory" / "ammo.sqlite"
+    if not db.is_file():
+        print("No run memory yet.", file=sys.stderr)
+        return 1
+    with MemoryStore(db) as memory:
+        try:
+            result = memory.apply_feedback(args.run_id, args.verdict == "good", args.note)
+        except KeyError as exc:
+            print(f"feedback: {exc}", file=sys.stderr)
+            return 1
+    print(f"recorded: {result['run_id']} -> {result['feedback']}")
+    if result["corrected"] > 0:
+        print("improvement loop corrected: the confidence proxy had under-credited this team (+1 success)")
+    elif result["corrected"] < 0:
+        print("improvement loop corrected: the confidence proxy had over-credited this team (-1 success)")
+    return 0
+
+
+_CAL_BANDS = (("very_low", 0.0, 0.25), ("low", 0.25, 0.5),
+              ("medium", 0.5, 0.75), ("high", 0.75, 1.01))
+
+
+def _cmd_calibrate(_args: argparse.Namespace) -> int:
+    root = find_ammo_root()
+    db = root / "memory" / "ammo.sqlite"
+    rows = []
+    if db.is_file():
+        with MemoryStore(db) as memory:
+            rows = memory.feedback_rows()
+    if not rows:
+        print("No feedback recorded yet — after a run, judge it with "
+              "`ammo feedback <run_id> good|bad`. Calibration needs that ground truth.")
+        return 0
+
+    print(f"Calibration — {len(rows)} judged run(s). A well-calibrated band's "
+          "good-rate should sit inside its score range:")
+    for band, lo, hi in _CAL_BANDS:
+        in_band = [r for r in rows if r["confidence_score"] is not None
+                   and lo <= r["confidence_score"] < hi]
+        if not in_band:
+            continue
+        good = sum(1 for r in in_band if str(r["user_feedback"]).startswith("good"))
+        rate = good / len(in_band)
+        marker = ""
+        if rate < lo:
+            marker = "  <- OVERCONFIDENT (good-rate below the band)"
+        elif rate >= hi:
+            marker = "  <- underconfident (good-rate above the band)"
+        print(f"  {band:9} n={len(in_band):<3} good-rate={rate:.0%}{marker}")
+    if len(rows) < 10:
+        print(f"note: only {len(rows)} sample(s) — collect ~10+ before adjusting weights.")
     return 0
 
 

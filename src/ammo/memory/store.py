@@ -272,6 +272,56 @@ class MemoryStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    # -- user feedback: ground truth for calibration ---------------------------
+
+    def apply_feedback(self, run_id: str, good: bool, note: str = "") -> Dict[str, Any]:
+        """Record the user's verdict on a run and CORRECT the improvement loop.
+
+        Success was credited from confidence (>= 0.5) at record time; when the
+        user's verdict contradicts that proxy, the run's models/team get their
+        success counts adjusted so future formation learns from truth.
+        """
+        row = self.conn.execute(
+            "SELECT * FROM runs WHERE run_id=?", (run_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown run: {run_id}")
+        run = dict(row)
+        proxy_success = _is_success(run.get("confidence_score"))
+        verdict = "good" if good else "bad"
+        feedback = f"{verdict}: {note}" if note else verdict
+
+        delta = 0
+        if good and not proxy_success:
+            delta = 1        # under-credited: the proxy called it a failure
+        elif not good and proxy_success:
+            delta = -1       # over-credited: the proxy called it a success
+
+        tag = run.get("selected_system") or run.get("domain") or "general"
+        with self.conn:
+            self.conn.execute(
+                "UPDATE runs SET user_feedback=? WHERE run_id=?", (feedback, run_id)
+            )
+            if delta:
+                for model_id in json.loads(run.get("selected_models") or "[]"):
+                    self.conn.execute(
+                        "UPDATE model_performance SET successes=MAX(0, successes+?) "
+                        "WHERE model_id=? AND task_tag=?", (delta, model_id, tag)
+                    )
+                self.conn.execute(
+                    "UPDATE team_synergy SET successes=MAX(0, successes+?) "
+                    "WHERE team_signature=? AND task_tag=?",
+                    (delta, run.get("team_signature"), tag)
+                )
+        return {"run_id": run_id, "feedback": feedback, "corrected": delta}
+
+    def feedback_rows(self) -> List[Dict[str, Any]]:
+        rows = self.conn.execute(
+            "SELECT run_id, confidence_score, user_feedback FROM runs "
+            "WHERE user_feedback IS NOT NULL ORDER BY timestamp"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
     # -- dream / consolidation primitives ------------------------------------
 
     def model_cost_snapshot(self) -> Dict[str, Dict[str, float]]:
