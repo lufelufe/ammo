@@ -20,7 +20,10 @@ Runner = Callable[..., Tuple[int, str]]
 def _invoke_command(profile, model_id: str) -> Optional[List[str]]:
     if not profile.invoke:
         return None
-    return [token.replace("{model}", model_id) for token in profile.invoke]
+    command = [token.replace("{model}", model_id) for token in profile.invoke]
+    # per-model extra args (e.g. `--model haiku` on the shared claude CLI)
+    command += list(getattr(profile, "model_args", {}).get(model_id, []))
+    return command
 
 
 class RealAdapterFactory:

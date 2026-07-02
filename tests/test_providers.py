@@ -42,7 +42,8 @@ ANTHROPIC = next(p for p in DEFAULT_CATALOG if p.id == "anthropic-api")
 def test_cli_authenticated_available():
     st = _detector(installed={"claude"}, authed=True).detect(CLAUDE)
     assert st.available and st.detail == "authenticated"
-    assert st.models == ["claude_a_planner", "claude_b_critic"]
+    assert st.models == ["claude_a_planner", "claude_b_critic",
+                         "claude_haiku_fast", "claude_sonnet_worker"]
 
 
 def test_cli_installed_but_not_authenticated():
@@ -124,3 +125,13 @@ def test_cli_providers_runs(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "Providers:" in out
+
+
+def test_model_args_extend_the_invoke_command():
+    from ammo.adapters.resolver import _invoke_command
+
+    claude = next(p for p in DEFAULT_CATALOG if p.id == "claude-code")
+    haiku_cmd = _invoke_command(claude, "claude_haiku_fast")
+    default_cmd = _invoke_command(claude, "claude_a_planner")
+    assert haiku_cmd[-2:] == ["--model", "haiku"]      # per-model CLI mapping
+    assert "--model" not in default_cmd                # default seat untouched

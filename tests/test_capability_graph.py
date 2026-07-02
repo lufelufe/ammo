@@ -27,6 +27,8 @@ EXPECTED_MODELS = {
     "kimi_coder_mock",
     "gpt_oss_critic_mock",
     "fast_worker_mock",
+    "claude_haiku_fast",
+    "claude_sonnet_worker",
 }
 
 
@@ -62,7 +64,7 @@ def test_model_node_from_dict_full():
 
 # --- graph loading & queries ------------------------------------------------
 
-def test_graph_loads_the_seven_models(graph):
+def test_graph_loads_the_registry_models(graph):
     assert {n.id for n in graph.nodes} == EXPECTED_MODELS
 
 

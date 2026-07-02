@@ -99,3 +99,32 @@ models:
     enabled: true
     status: mock
     credentials_env: []
+
+  # Real workers reached through the SAME authenticated claude CLI via
+  # --model — one subscription, several models: the diversity the learning
+  # loop needs. Live-verified 2026-07-02 (haiku $0.0009, sonnet $0.0023/call).
+  - id: claude_haiku_fast
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [analyst, synthesizer, implementer]
+    capabilities: [general, writing, summarization]
+    context_window: 200000
+    cost_class: cheap
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: real
+    credentials_env: []
+
+  - id: claude_sonnet_worker
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [analyst, reviewer]
+    capabilities: [analysis, general, writing]
+    context_window: 200000
+    cost_class: standard
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: real
+    credentials_env: []

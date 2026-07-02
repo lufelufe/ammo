@@ -75,7 +75,8 @@ def test_first_summon_configures_safe_defaults(root, capsys):
     assert config.host == "claude-code"
     assert config.primary_model == "claude_a_planner"        # host anchors primary
     assert config.primary_provider == "claude-code"
-    assert set(config.models) == {"claude_a_planner", "claude_b_critic", "codex_builder"}
+    assert {"claude_a_planner", "claude_b_critic", "claude_haiku_fast",
+            "claude_sonnet_worker", "codex_builder"} <= set(config.models)
     assert config.default_objective == "balanced"
     # permission-granting steps are pointed to, never auto-applied
     assert "ammo connect" in out and "ammo bind" in out

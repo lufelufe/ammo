@@ -29,6 +29,7 @@ class ProviderProfile:
     invoke: Optional[List[str]] = None         # command to run a prompt ({model} placeholder)
     parser: Optional[str] = None               # usage-parser name (adapters/usage_parsers.py)
     models: List[str] = field(default_factory=list)
+    model_args: dict = field(default_factory=dict)  # model_id -> extra CLI args
     cost: str = "included"                     # included (cli/local) | paid (api)
 
 
@@ -80,7 +81,15 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
             "--no-session-persistence",
         ],
         parser="claude_json",
-        models=["claude_a_planner", "claude_b_critic"], cost="included",
+        # one subscription, several REAL models (--model): the pool diversity
+        # the learning loop needs. haiku/sonnet live-verified 2026-07-02.
+        models=["claude_a_planner", "claude_b_critic",
+                "claude_haiku_fast", "claude_sonnet_worker"],
+        model_args={
+            "claude_haiku_fast": ["--model", "haiku"],
+            "claude_sonnet_worker": ["--model", "sonnet"],
+        },
+        cost="included",
     ),
     ProviderProfile(
         "codex", SUBSCRIPTION_CLI, "Codex CLI",

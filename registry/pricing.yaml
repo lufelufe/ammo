@@ -53,3 +53,13 @@ models:
     price_per_mtok_in: 0
     price_per_mtok_out: 0
     source: local-compute
+  - id: claude_haiku_fast
+    billing: subscription
+    price_per_mtok_in: 1.00      # Claude Haiku 4.5 public API price
+    price_per_mtok_out: 5.00
+    source: anthropic-public-pricing
+  - id: claude_sonnet_worker
+    billing: subscription
+    price_per_mtok_in: 3.00      # Claude Sonnet public API price
+    price_per_mtok_out: 15.00
+    source: anthropic-public-pricing

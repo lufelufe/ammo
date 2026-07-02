@@ -16,11 +16,16 @@ from ammo.kernel.team_formation import TeamFormer, form_team
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-VALID_MODELS = {
-    "claude_a_planner", "codex_builder", "claude_b_critic", "qwen_planner_mock",
-    "kimi_coder_mock", "gpt_oss_critic_mock", "fast_worker_mock",
-    "local_test_runner",  # fixed infra position
-}
+def _valid_models():
+    # derive from the registry + fixed infra ids so new model nodes don't
+    # invalidate the invariant (the point is "no invented ids", not a frozen set)
+    from ammo.kernel.team_formation import templates as tpl
+
+    graph = CapabilityGraph.from_registry(root=REPO_ROOT)
+    return {n.id for n in graph.nodes} | set(tpl.FIXED_MODELS.values())
+
+
+VALID_MODELS = _valid_models()
 
 
 @pytest.fixture(scope="module")
@@ -89,7 +94,9 @@ def test_personal_simple_task_uses_fast_worker(analyzer, graph):
     plan = _plan(analyzer, graph, "오늘 할 일 정리해줘")
     assert plan.selected_system == "personal"
     assert plan.roles == ["fast_worker"]
-    assert plan.selected_team[0].model == "fast_worker_mock"
+    # behavior, not identity: the single-worker seat must be cheap AND fast
+    node = next(n for n in graph.nodes if n.id == plan.selected_team[0].model)
+    assert node.cost_class == "cheap" and node.latency_class == "fast"
 
 
 # --- cross-cutting invariants ----------------------------------------------
