@@ -71,9 +71,10 @@ route (see `docs/BACKLOG.md`).
 
 ## How to add things (smallest footprint first)
 
-- **A new CLI command:** add a subparser in `build_parser()` and a thin
-  `_cmd_x` handler in `src/ammo/cli.py`; put real logic in a module, not the
-  handler.
+- **A new CLI command:** add a subparser in `build_parser()` (`src/ammo/cli.py`
+  — the parser IS the UI surface, all in one file) and a thin `_cmd_x` handler
+  in the matching `src/ammo/commands/<group>.py`; put real logic in a module,
+  not the handler.
 - **A new kernel subsystem:** `src/ammo/kernel/<name>/` with small modules and an
   `__init__.py` that exports the public API; add a `tests/test_<name>.py`.
 - **A new model adapter:** implement `BaseModelAdapter` (`src/ammo/adapters/

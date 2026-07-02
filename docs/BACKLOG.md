@@ -40,8 +40,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   `vaults/` placeholders (currently 1 level).
 
 ### Kernel code
-- `src/ammo/cli.py` is growing (7+ commands). Consider splitting handlers into a
-  `commands/` module (rule 6 hygiene).
 - Duplicate cross-reference validation: `tests/test_system_packs.py` invariants
   overlap `SystemPackLoader._validate()`. Possibly unify.
 
