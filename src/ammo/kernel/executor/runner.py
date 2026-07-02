@@ -29,6 +29,17 @@ VERDICT_INSTRUCTION = (
 )
 _VERDICT_RE = re.compile(r"VERDICT:\s*(PASS|FAIL)\b[\s—:–-]*(.*)", re.IGNORECASE)
 
+REBUTTAL_INSTRUCTION = (
+    "A challenger has objected to your earlier answer (see 'challenge' in the "
+    "context). Defend it with evidence or REVISE it — output your final, "
+    "corrected answer in full."
+)
+FINAL_VERDICT_INSTRUCTION = (
+    "You are the team's checker in a debate. The proposer has responded to "
+    "your challenge (see the context). Judge the FINAL state of the work. "
+    "End with exactly one line: 'VERDICT: PASS' or 'VERDICT: FAIL — <reason>'."
+)
+
 
 def _parse_verdict(output: str):
     # scan lines bottom-up: the checker's FINAL verdict line wins, so an
@@ -81,7 +92,58 @@ class Runner:
             responses.append(response)
             context[step.role] = response.output
 
+            # debate: the marked challenger's objection triggers rebuttal
+            # rounds before the pipeline continues (challenge -> proposer
+            # rebuttal -> challenger FINAL verdict; only the final one scores)
+            debate = plan.debate
+            if debate and step.role == debate["challenger"]:
+                self._run_debate(plan, task, context, responses, debate,
+                                 base_context={"system_context": step_context.get("system_context", "")})
+
         return ExecutionResult(plan=plan, task=task, responses=responses, mode=self.mode)
+
+    def _run_debate(self, plan, task, context, responses, debate, base_context):
+        models = {m.role: m.model for m in plan.selected_team}
+        proposer, challenger = debate["proposer"], debate["challenger"]
+        if proposer not in models or challenger not in models:
+            return
+        # the opening objection is part of the PROCESS, not the verdict:
+        # downgrade its review evidence to 'challenge' so it isn't an objection
+        for ev in responses[-1].evidence:
+            if ev.kind == "review":
+                ev.kind = "challenge"
+
+        for _ in range(debate.get("rounds", 1)):
+            rebuttal_ctx = dict(context)
+            rebuttal_ctx.update(base_context)
+            rebuttal_ctx["challenge"] = context.get(challenger, "")
+            rebuttal_ctx["instruction"] = REBUTTAL_INSTRUCTION
+            rebuttal = self._execute_with_retry(
+                self._make_adapter(models[proposer]),
+                AdapterRequest(role=proposer, model=models[proposer],
+                               task_input=task.raw_input,
+                               system=plan.selected_system,
+                               allowed_tools=list(plan.required_tools),
+                               context=rebuttal_ctx),
+            )
+            responses.append(rebuttal)
+            context[proposer] = rebuttal.output
+
+            final_ctx = dict(context)
+            final_ctx.update(base_context)
+            final_ctx["instruction"] = FINAL_VERDICT_INSTRUCTION
+            final = self._execute_with_retry(
+                self._make_adapter(models[challenger]),
+                AdapterRequest(role=challenger, model=models[challenger],
+                               task_input=task.raw_input,
+                               system=plan.selected_system,
+                               allowed_tools=list(plan.required_tools),
+                               context=final_ctx),
+            )
+            # mock checkers re-emit review evidence; real ones emit a verdict
+            self._attach_verdict_evidence(challenger, final)
+            responses.append(final)
+            context[challenger] = final.output
 
     def _execute_with_retry(self, adapter: BaseModelAdapter,
                             request: AdapterRequest) -> AdapterResponse:

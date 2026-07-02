@@ -130,6 +130,15 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery P1 — Debate execution mode.** A workflow stage marked `debate`
+  turns the checker's objection into an exchange: challenge -> proposer
+  rebuttal (objection handed over as context) -> challenger FINAL verdict,
+  for N rounds. The opening objection is downgraded to `challenge` evidence
+  (process, not verdict) so only the final review scores; an objection that
+  was raised and then resolved earns "objection resolved through debate"
+  (+0.05) — stronger than never having been challenged. Workflow completion
+  now counts covered SEATS, not response rows. The personal pack's
+  investment-intel critic stage ships with `debate: true`.
 - **Delivery — multi-account Claude + summon accessibility.** Two-plus Claude
   accounts on one Mac work WITHOUT switching macOS users: `CLAUDE_CONFIG_DIR`
   fully separates auth slots (verified live), so the catalog ships a

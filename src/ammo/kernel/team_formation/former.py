@@ -57,7 +57,7 @@ class TeamFormer:
     def form(self, task: TaskVector, extra_roles: Optional[List[str]] = None) -> ExecutionPlan:
         """`extra_roles` lets an escalation (limits.yaml `add_role:X`) reinforce
         the team; they are appended AFTER the max_team_size cap on purpose."""
-        template, positions, workflow_id, workflow_gate = self._route(task)
+        template, positions, workflow_id, workflow_gate, debate = self._route(task)
         if template == "coding_standard" and task.needs_tests:
             positions.append("test_runner")
 
@@ -96,6 +96,7 @@ class TeamFormer:
             notes=notes,
             workflow=workflow_id,
             workflow_gate=workflow_gate,
+            debate=debate if debate and {debate["proposer"], debate["challenger"]} <= set(roles) else None,
         )
 
     # -- template selection -------------------------------------------------
@@ -109,19 +110,34 @@ class TeamFormer:
         """
         override = self.preferences.get("default_template")
         if override in tpl.TEMPLATES:
-            return override, list(tpl.TEMPLATES[override]), None, None
+            return override, list(tpl.TEMPLATES[override]), None, None, None
 
         workflow = self._match_workflow(task)
         if workflow is not None:
-            positions = [st.get("role") for st in workflow.get("stages") or []
-                         if st.get("role") in tpl.POSITION_SPEC
-                         or st.get("role") in tpl.FIXED_MODELS]
+            stages = [st for st in (workflow.get("stages") or [])
+                      if st.get("role") in tpl.POSITION_SPEC
+                      or st.get("role") in tpl.FIXED_MODELS]
+            positions = [st["role"] for st in stages]
             if positions:
                 return (f"workflow:{workflow.get('id')}", positions,
-                        workflow.get("id"), workflow.get("confidence_gate"))
+                        workflow.get("id"), workflow.get("confidence_gate"),
+                        self._debate_spec(stages))
 
         template = self._select_template(task)
-        return template, list(tpl.TEMPLATES[template]), None, None
+        return template, list(tpl.TEMPLATES[template]), None, None, None
+
+    @staticmethod
+    def _debate_spec(stages):
+        """First stage marked `debate` becomes the challenger; the stage before
+        it is the proposer. `debate: true` = 1 round; an int = that many."""
+        for i, stage in enumerate(stages):
+            flag = stage.get("debate")
+            if flag and i > 0:
+                rounds = int(flag) if isinstance(flag, int) and not isinstance(flag, bool) else 1
+                return {"proposer": stages[i - 1]["role"],
+                        "challenger": stage["role"],
+                        "rounds": max(1, rounds)}
+        return None
 
     def _match_workflow(self, task: TaskVector):
         """A workflow routes only on an EXACT normalized id match with the

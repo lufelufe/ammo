@@ -163,6 +163,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 timestamp=now.isoformat(),
             )
 
+    if plan.debate:
+        print(f"debate: {plan.debate['proposer']} ⟷ {plan.debate['challenger']} "
+              f"({plan.debate.get('rounds', 1)} round(s))")
     print(f"run_id: {run_id}")
     print(f"judge it (feeds learning): ammo feedback {run_id} good|bad")
     print(f"output: {path}")

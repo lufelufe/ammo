@@ -33,6 +33,7 @@ class ExecutionPlan:
     notes: List[str] = field(default_factory=list)  # e.g. memory-guided pick explanations
     workflow: Optional[str] = None          # pack workflow id when stage-routed
     workflow_gate: Optional[float] = None   # that workflow's confidence_gate
+    debate: Optional[Dict[str, Any]] = None # {proposer, challenger, rounds}
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -46,4 +47,5 @@ class ExecutionPlan:
             "notes": self.notes,
             "workflow": self.workflow,
             "workflow_gate": self.workflow_gate,
+            "debate": self.debate,
         }

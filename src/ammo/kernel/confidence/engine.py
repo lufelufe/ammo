@@ -54,16 +54,21 @@ class ConfidenceEngine:
         checker_roles_present = sorted({r.role for r in responses} & _CHECKER_ROLES)
         all_evidence = [ev for r in responses for ev in r.evidence]
 
-        # objections: explicit ones + any checker evidence that did NOT pass
+        # objections: explicit ones + any checker evidence that did NOT pass.
+        # kind='challenge' is a DEBATE opening move (process, not verdict) and
+        # is deliberately excluded — only the final review counts.
         open_objections: List[str] = list(objections or [])
         for r in responses:
             if r.role in _CHECKER_ROLES:
                 for ev in r.evidence:
-                    if not ev.ok:
+                    if not ev.ok and ev.kind != "challenge":
                         open_objections.append(f"{r.role}: {ev.summary}")
 
-        # 1. required workflow completed
-        if responses and len(responses) == team_size and all(r.output for r in responses):
+        # 1. required workflow completed — every planned SEAT produced output
+        # (debate/consensus add extra responses per seat, so count roles, not rows)
+        planned_roles = {m.role for m in plan.selected_team}
+        covered_roles = {r.role for r in responses if r.output}
+        if responses and planned_roles <= covered_roles:
             score += 0.10
             pos.append("required workflow completed")
         else:
@@ -96,6 +101,16 @@ class ConfidenceEngine:
             score -= min(len(open_objections), 3) * 0.12
             for obj in open_objections[:3]:
                 neg.append(f"unresolved objection — {obj}")
+
+        # 5a2. debate: an opening objection later resolved (final review PASS)
+        # is stronger evidence than never having been challenged at all
+        had_challenge = any(ev.kind == "challenge" and not ev.ok
+                            for ev in all_evidence)
+        final_reviews = [ev for r in responses if r.role in _CHECKER_ROLES
+                         for ev in r.evidence if ev.kind == "review"]
+        if had_challenge and final_reviews and final_reviews[-1].ok:
+            score += 0.05
+            pos.append("objection resolved through debate")
 
         # 5b. verification.yaml: the system declares what counts as success here
         declared = list((verification or {}).get("success_evidence") or [])[:3]

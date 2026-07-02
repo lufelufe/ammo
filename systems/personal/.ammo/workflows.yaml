@@ -20,6 +20,7 @@ workflows:
         does: collect-signals
       - role: critic
         does: challenge-signals
+        debate: true            # challenge -> analyst rebuttal -> final verdict
       - role: synthesizer
         does: compose-brief
     confidence_gate: 0.7
