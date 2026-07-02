@@ -1,0 +1,58 @@
+"""Resolve a model id to a real adapter (or a mock fallback).
+
+Given detected provider availability, map each model to a `CommandAdapter` that
+calls the authenticated CLI. Models with no available command-capable provider
+fall back to `MockAdapter` (recorded, so the caller can report real-vs-mock).
+AMMO stores no secrets; the CLI carries its own auth.
+"""
+
+from __future__ import annotations
+
+from typing import Callable, Dict, List, Optional, Tuple
+
+from ammo.adapters.command_adapter import CommandAdapter
+from ammo.adapters.contract import BaseModelAdapter
+from ammo.adapters.mock_adapter import MockAdapter
+
+Runner = Callable[..., Tuple[int, str]]
+
+
+def _invoke_command(profile, model_id: str) -> Optional[List[str]]:
+    if not profile.invoke:
+        return None
+    return [token.replace("{model}", model_id) for token in profile.invoke]
+
+
+class RealAdapterFactory:
+    """Callable ``model_id -> BaseModelAdapter`` for real execution."""
+
+    def __init__(self, root=None, statuses=None, runner: Optional[Runner] = None,
+                 allow_paid: bool = False):
+        from ammo.providers import DEFAULT_CATALOG, AvailabilityDetector, select_models
+
+        self._runner = runner
+        self.statuses = (
+            statuses if statuses is not None
+            else AvailabilityDetector().detect_all(DEFAULT_CATALOG)
+        )
+        self.usable = select_models(self.statuses, allow_paid=allow_paid)
+        self._profiles = {s.profile.id: s.profile for s in self.statuses}
+        self.resolutions: Dict[str, Tuple[str, Optional[str]]] = {}
+
+    def __call__(self, model_id: str) -> BaseModelAdapter:
+        provider_id = self.usable.get(model_id)
+        profile = self._profiles.get(provider_id) if provider_id else None
+        command = _invoke_command(profile, model_id) if profile else None
+        if provider_id and command:
+            from ammo.adapters.usage_parsers import PARSERS
+
+            self.resolutions[model_id] = ("real", provider_id)
+            return CommandAdapter(model_id, command, self._runner,
+                                  parser=PARSERS.get(profile.parser))
+        # unavailable, or provider has no command invocation (e.g. API) -> mock
+        self.resolutions[model_id] = ("mock", provider_id)
+        return MockAdapter(model_id)
+
+    @property
+    def real_count(self) -> int:
+        return sum(1 for kind, _ in self.resolutions.values() if kind == "real")
