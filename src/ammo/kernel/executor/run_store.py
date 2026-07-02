@@ -88,6 +88,7 @@ class RunStore:
         result: ExecutionResult,
         confidence: Optional[Dict[str, Any]] = None,
         economics: Optional[Dict[str, Any]] = None,
+        sandbox: Optional[str] = None,
         run_id: Optional[str] = None,
         now: Optional[datetime] = None,
     ) -> Tuple[str, Path]:
@@ -122,6 +123,7 @@ class RunStore:
                 "aggregate_confidence": result.aggregate_confidence,
                 "confidence": confidence,
                 "economics": economics,
+                "sandbox": sandbox,
                 "final_output": result.final_output,
             },
         )

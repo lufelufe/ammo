@@ -312,6 +312,16 @@ def build_parser() -> argparse.ArgumentParser:
     pricing_set.add_argument("--billing", choices=["api", "subscription", "local"])
     pricing_set.set_defaults(func=_cmd_pricing_set)
 
+    promote_parser = subparsers.add_parser(
+        "promote",
+        help="Apply a run's sandboxed writes to the real target (diff first, then --apply).",
+    )
+    promote_parser.add_argument("run_id", metavar="RUN_ID")
+    promote_parser.add_argument("--to", help="Target root (default: the system's source_path).")
+    promote_parser.add_argument("--apply", action="store_true",
+                                help="Copy the files (default: dry-run diff).")
+    promote_parser.set_defaults(func=_cmd_promote)
+
     dream_parser = subparsers.add_parser(
         "dream",
         help="Consolidate memory: rebuild aggregates, drop orphans, prune, distill journals.",
@@ -552,6 +562,19 @@ def _cmd_pricing_set(args: argparse.Namespace) -> int:
     book.save()
     print(f"Updated {price.id}: in ${price.price_per_mtok_in}/MTok, "
           f"out ${price.price_per_mtok_out}/MTok [{price.billing}]")
+    return 0
+
+
+def _cmd_promote(args: argparse.Namespace) -> int:
+    from ammo.tools.promote import PromoteError, plan_promotion
+
+    try:
+        report = plan_promotion(find_ammo_root(), args.run_id, to=args.to,
+                                apply=args.apply)
+    except PromoteError as exc:
+        print(f"promote: {exc}", file=sys.stderr)
+        return 1
+    print(report.to_text())
     return 0
 
 
@@ -935,7 +958,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     now = datetime.now(timezone.utc)
     run_id, path = RunStore(root).save(
         input_text=args.text, task=task, plan=plan, result=result,
-        confidence=report.to_dict(), economics=economics, now=now,
+        confidence=report.to_dict(), economics=economics,
+        sandbox=str(sandbox.dir) if sandbox else None, now=now,
     )
 
     with MemoryStore.open(root) as memory:
