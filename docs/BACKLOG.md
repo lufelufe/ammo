@@ -32,7 +32,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   - `insights.md` distillation is counts only; recurring corrections / best model
     per role would be richer.
   - Journal distillation archives by count, no semantic merge of archived turns.
-  - A `doctor` notice when run count crosses the window (suggest running `dream`).
 
 ### Environment / tooling
 - Standardize the run environment: system Python 3.14 lacks pytest/PyYAML; we use
@@ -62,13 +61,8 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   `ammo eval --compare`) to chart improvement.
 
 ### Role dirs / per-system memory / exploration (M16)
-- Role workspaces persist output but are not yet **read back** into the next
-  run's context (cross-run role memory). Feed `RoleWorkspace.journal` into the
-  AdapterRequest context so roles accumulate usable expertise.
 - Exploration is a static bonus to under-tried models; there's no epsilon
   schedule or convergence tracking. Consider annealing explore over attempts.
-- Per-system memory: model_performance/team_synergy now keyed by system; old
-  domain-keyed rows (if any) coexist. No migration/backfill.
 - Role workspaces live under `systems/<sys>/roles/` (gitignored). For a mounted
   (external) system, traces still land in-repo, not in the mounted dir — revisit
   if role data should live beside the source.
@@ -126,9 +120,6 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   for sharper improvement suggestions.
 
 ### System Connection (Phase 8 v0 / M12)
-- Permission **enforcement** is not implemented — `permissions.yaml` scopes are
-  declarative. Real sandboxing/file-access gating must land when tools execute
-  (Phase 9+). Until then a "connected" pack cannot actually touch its source.
 - A connected pack's `manifest.source_path` is an **absolute, machine-local**
   path — not portable across machines and not ideal to commit. Consider a
   gitignore convention or a per-machine mounts file if connected packs should
@@ -154,9 +145,9 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 ### Confidence Engine (Phase 6 v0)
 - Weights are hand-tuned constants; not calibrated against outcomes. Tune once
   real runs + Memory Feedback (Phase 7) provide ground truth.
-- Does not yet compare the score against the pack's `workflows.yaml`
-  `confidence_gate` to drive escalate/accept; `required_next_action` is
-  rule-based. Wire the gate in when team formation consumes it.
+- `limits.yaml` confidence_gate is wired (M19); the pack's `workflows.yaml`
+  stage definitions still don't drive routing/escalation (templates are
+  hard-coded — see Team Formation).
 - "Model agreement" is proxied by distinct-models + no-objections, not by
   actually comparing outputs. Real agreement needs output comparison.
 
@@ -167,11 +158,10 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - `runtime/**` is gitignored, so run history is local-only (by design).
 
 ### Mock Execution / Adapters (Phase 5 v0 + adapter contract)
-- `aggregate_confidence` is a naive mean of self-reported values — replace with
-  the real evidence-grounded Confidence Engine (Phase 6).
+- `aggregate_confidence` (naive self-report mean) still exists as a field next
+  to the real evidence-based report — remove or rename to avoid confusion.
 - Execution is a fixed sequential pipeline (member→member). Real execution may
-  need parallel fan-out, retries, and per-member tool execution (tools are only
-  *declared* now, never run).
+  need parallel fan-out and retries. (Tool execution itself is shipped.)
 - MockAdapter echoes the user's raw input verbatim (may be non-English) inside
   otherwise-English output — that is request data, not a UI label; revisit if a
   strict UI-language check is wanted.
