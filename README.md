@@ -78,24 +78,42 @@ aspirational.
 structure → register → analyze → form team → execute → confidence → memory → learn
 ```
 
+## Install — one-time setup
+
+Clone the repo and create its virtualenv **once**. Every command below is run
+from the **repo root** (`cd` into it first).
+
+```bash
+git clone https://github.com/lufelufe/ammo.git
+cd ammo
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # one-time
+```
+
+The `./ammo` launcher uses that `.venv` automatically — you never need to
+activate it. (If you skip the setup, `./ammo` prints the exact command to run.)
+
 ## Controls — how to operate AMMO
 
-### Summon
+### Summon — where to run it
 
-From any host, one word: **`ammo`**. It runs a short setup wizard on the first
-summon and a one-screen ready summary on every later one.
+AMMO is summoned differently depending on where you are:
+
+| You are in… | Summon with | Runs from |
+|---|---|---|
+| **A terminal** | `./ammo start` | the **repo root** (the folder you cloned) |
+| **Claude Code** | just say **`ammo`** | any dir — `CLAUDE.md` carries the summon line (`--host claude-code`) |
+| **Codex** | just say **`ammo`** | reads `AGENTS.md` natively → its *Summon* section |
+| **Qwen / Gemini** | just say **`ammo`** | pointer files `QWEN.md` / `GEMINI.md` → `AGENTS.md` |
+
+Inside an agent host, the one word **`ammo`** is enough — the host's
+instruction file (`CLAUDE.md` / `AGENTS.md` / …) runs the summon for you. In a
+bare terminal, use the `./ammo` launcher from the repo root. The first summon
+runs a short setup wizard; every later one prints a one-screen ready summary.
 
 ```bash
 ./ammo start          # summon: first-run wizard, or the ready summary if configured
 ./ammo status         # one screen: host, models, systems, memory
 ```
-
-| Host | How AMMO is summoned |
-|---|---|
-| Terminal | `./ammo` launcher at the repo root (no venv activation needed) |
-| Claude Code | `CLAUDE.md` carries the summon line (`--host claude-code`) |
-| Codex | reads `AGENTS.md` natively → its *Summon* section |
-| Qwen / Gemini | thin pointer files `QWEN.md` / `GEMINI.md` → `AGENTS.md` |
 
 ### Interactive shell (recommended)
 
@@ -173,12 +191,13 @@ ammo/
 **data**. This separation is deliberate and load-bearing: the kernel must never
 be entangled with the data it governs.
 
-## Quick start (development)
+## Development
+
+After the one-time [install](#install--one-time-setup), from the repo root:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-python -m ammo doctor          # check the AMMO root structure
+source .venv/bin/activate       # or just prefix commands with .venv/bin/
+python -m ammo doctor           # check the AMMO root structure
 python -m ammo run --mock "fix the bug in this repo and add tests"
 pytest
 ```
