@@ -6,7 +6,7 @@ from ammo.kernel.capability_graph import CapabilityGraph, score_models, task_nee
 from ammo.kernel.task_understanding import TaskAnalyzer
 from ammo.kernel.team_formation import TeamFormer
 from ammo.paths import find_ammo_root
-from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective
+from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _load_role_assignments, _resolve_objective
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
@@ -58,6 +58,7 @@ def _cmd_plan_team(args: argparse.Namespace) -> int:
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
+        role_assignments=_load_role_assignments(root),
         preferences=pack.preferences if pack else None,
         limits=pack.limits if pack else None,
         workflows=pack.workflow_list if pack else None,

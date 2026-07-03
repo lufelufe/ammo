@@ -35,12 +35,16 @@ models:
     status: mock
     credentials_env: []
 
+  # Account B, now running Claude Fable 5 (claude-fable-5) — Anthropic's most
+  # capable model. Capable across the board, so it carries orchestration roles in
+  # addition to critique. Seated as the orchestrator via ammo.config.yaml `roles`.
+  # (id kept for compatibility; rename to claude_b_fable is a clean follow-up.)
   - id: claude_b_critic
     provider: anthropic
     adapter: ammo.adapters.claude_code
-    roles: [critic, reviewer]
-    capabilities: [review, analysis, reasoning]
-    context_window: 200000
+    roles: [router, analyst, synthesizer, critic, reviewer]
+    capabilities: [planning, reasoning, analysis, general, review]
+    context_window: 1000000
     cost_class: premium
     latency_class: medium
     warm_status: warm

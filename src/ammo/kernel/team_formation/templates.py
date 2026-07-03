@@ -33,6 +33,27 @@ POSITION_SPEC = {
 # exclusive capability/role instead of by fiat.
 FIXED_MODELS = {}
 
+# Maps a concrete team POSITION to one of the four user-facing role slots
+# (ammo.roleplan.SLOTS). Team formation uses this so a user's role assignment
+# ("claude_b is the orchestrator") wins the matching seat. Positions absent
+# here (e.g. test_runner infra) are unaffected by role assignments.
+POSITION_SLOT = {
+    "planner": "orchestrator",
+    "synthesizer": "orchestrator",
+    "triage": "orchestrator",
+    "researcher": "worker",
+    "fast_worker": "worker",
+    "analyst": "worker",
+    "critic": "critic",
+    "skeptic": "critic",
+    "judge": "critic",
+    "reviewer": "critic",
+    "rollback_critic": "critic",
+    "builder": "builder",
+    "implementer": "builder",
+    "operator": "builder",
+}
+
 TEMPLATES = {
     "simple_fast": ["fast_worker"],
     "research": ["researcher", "skeptic", "synthesizer"],

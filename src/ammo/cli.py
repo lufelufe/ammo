@@ -20,6 +20,7 @@ from ammo.commands.economics_cmds import _cmd_pricing_show, _cmd_pricing_set, _c
 from ammo.commands.eval_cmds import _cmd_eval, _cmd_eval_system, _cmd_eval_systems
 from ammo.commands.connect_cmds import _cmd_new_system, _cmd_connect, _cmd_disconnect, _cmd_adopt
 from ammo.commands.provider_cmds import _cmd_providers, _cmd_bind, _cmd_role_log
+from ammo.commands.roles_cmds import _cmd_roles_show, _cmd_roles_plan, _cmd_roles_set
 from ammo.commands.shell import _cmd_enter
 
 TAGLINE = "AMMO is not a router. AMMO is the adaptive orchestration kernel of a Personal AI OS."
@@ -30,9 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ammo",
         description=(
-            "AMMO — the Adaptive Multi-Model Orchestrator. "
-            "Kernel of a Personal AI OS. (Milestone 0: bootstrap; no "
-            "orchestration logic yet.)"
+            "AMMO — the Adaptive Multi-Model Orchestrator. Kernel of a Personal "
+            "AI OS: understand a task, form a team, execute, score confidence, and "
+            "learn from the outcome."
         ),
         epilog=TAGLINE,
     )
@@ -71,6 +72,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Open an interactive AMMO shell — stay inside, type requests, `exit` to leave.",
     )
     enter_parser.set_defaults(func=_cmd_enter)
+
+    roles_parser = subparsers.add_parser(
+        "roles",
+        help="Assign who plays each seat (orchestrator/critic/worker/builder).",
+    )
+    roles_parser.set_defaults(func=_cmd_roles_show)
+    roles_sub = roles_parser.add_subparsers(dest="roles_command", metavar="<command>")
+    roles_show = roles_sub.add_parser("show", help="Show the current role assignment.")
+    roles_show.set_defaults(func=_cmd_roles_show)
+    roles_plan = roles_sub.add_parser(
+        "plan", help="Show the interview: usable models, candidates, proposed defaults.",
+    )
+    roles_plan.add_argument("--json", action="store_true", help="Machine-readable (for a host UI).")
+    roles_plan.add_argument("--allow-paid", action="store_true", help="Include paid API models.")
+    roles_plan.set_defaults(func=_cmd_roles_plan)
+    roles_set = roles_sub.add_parser(
+        "set", help="Assign models to seats (flags, or interactive in a terminal).",
+    )
+    roles_set.add_argument("--orchestrator", metavar="MODEL", help="Model for the orchestrator seat.")
+    roles_set.add_argument("--critic", metavar="MODEL", help="Model for the critic seat.")
+    roles_set.add_argument("--worker", metavar="MODEL", help="Model for the simple-worker seat.")
+    roles_set.add_argument("--builder", metavar="MODEL", help="Model for the builder seat.")
+    roles_set.add_argument("--allow-paid", action="store_true", help="Include paid API models.")
+    roles_set.set_defaults(func=_cmd_roles_set)
 
     doctor_parser = subparsers.add_parser(
         "doctor",

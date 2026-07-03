@@ -129,6 +129,25 @@ runs a short setup wizard; every later one prints a one-screen ready summary.
 ./ammo status         # one screen: host, models, systems, memory
 ```
 
+### Assign roles — who plays each seat
+
+You author a small, human-facing role assignment (**orchestrator / critic /
+simple worker / builder**); AMMO detects the usable models, proposes a default
+per seat, and lets the summoning host ask you seat by seat. The assignment is
+*authority* — the model you pick wins that seat in team formation, and the
+internal kernel roles (router/analyst/synthesizer/critic/reviewer/…) are derived
+automatically and shown as information.
+
+```bash
+./ammo roles plan     # the interview: usable models, candidates, proposed defaults
+./ammo roles set --orchestrator claude_b --critic claude_a \
+                 --worker codex_builder --builder codex_builder
+./ammo roles         # show the current assignment + auto internal-role map
+```
+
+In Claude Code, just say **`ammo`** and the host asks you seat by seat as cards;
+in a terminal, `./ammo roles set` (no flags) runs the same interview as prompts.
+
 ### Interactive shell (recommended)
 
 `ammo enter` opens a stay-inside session: type a request and it runs, or type a

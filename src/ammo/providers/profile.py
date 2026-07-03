@@ -97,6 +97,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
         ],
         parser="claude_json",
         models=["claude_b_critic"], cost="included",
+        model_args={"claude_b_critic": ["--model", "claude-fable-5"]},
     ),
     # Lightweight worker mode MEASURED live 2026-07-02: replacing the full
     # Claude Code session surface (system prompt/MCP/tools/CLAUDE.md) with a
@@ -121,6 +122,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
         models=["claude_a_planner", "claude_b_critic",
                 "claude_haiku_fast", "claude_sonnet_worker"],
         model_args={
+            "claude_b_critic": ["--model", "claude-fable-5"],
             "claude_haiku_fast": ["--model", "haiku"],
             "claude_sonnet_worker": ["--model", "sonnet"],
         },
@@ -149,7 +151,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
         api_format="anthropic",
         api_models={
             "claude_a_planner": "claude-opus-4-8",
-            "claude_b_critic": "claude-opus-4-8",
+            "claude_b_critic": "claude-fable-5",
             "claude_haiku_fast": "claude-haiku-4-5",
             "claude_sonnet_worker": "claude-sonnet-5",
         },

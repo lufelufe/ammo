@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 CONFIG_FILE = "ammo.config.yaml"
 
@@ -21,6 +21,9 @@ class AmmoConfig:
     primary_model: Optional[str] = None
     models: List[str] = field(default_factory=list)   # preferred model set
     default_objective: str = "balanced"
+    # user-authored role assignment (slot id -> model id): who plays
+    # orchestrator / critic / worker / builder. See ammo.roleplan.
+    roles: Dict[str, str] = field(default_factory=dict)
     configured_at: str = ""
 
     def to_dict(self):
@@ -32,6 +35,7 @@ class AmmoConfig:
             "primary_model": self.primary_model,
             "models": self.models,
             "default_objective": self.default_objective,
+            "roles": self.roles,
             "configured_at": self.configured_at,
         }
 
@@ -53,6 +57,7 @@ def load_config(root: Path) -> Optional[AmmoConfig]:
         primary_model=data.get("primary_model"),
         models=list(data.get("models") or []),
         default_objective=data.get("default_objective", "balanced"),
+        roles={str(k): str(v) for k, v in (data.get("roles") or {}).items() if v},
         configured_at=str(data.get("configured_at", "")),
     )
 

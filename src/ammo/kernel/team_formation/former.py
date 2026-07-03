@@ -31,12 +31,16 @@ class ModelMemory(Protocol):
 OBJECTIVES = ("balanced", "performance", "cost", "speed")
 _COST_ORDER = {"cheap": 0, "standard": 1, "premium": 2}
 _BIAS_CAP = 2.0  # preferences.model_bias clamp; < capability match (+3)
+# a user's explicit role assignment is authority: it must outrank every other
+# scoring signal so the assigned model wins its seat.
+_ASSIGNMENT_BONUS = 100.0
 
 
 class TeamFormer:
     def __init__(self, graph: CapabilityGraph, memory: Optional[ModelMemory] = None,
                  binding=None, objective: str = "balanced",
                  primary: Optional[str] = None,
+                 role_assignments: Optional[dict] = None,
                  preferences: Optional[dict] = None,
                  limits: Optional[dict] = None,
                  workflows: Optional[list] = None):
@@ -46,6 +50,10 @@ class TeamFormer:
         self.objective = objective if objective in OBJECTIVES else "balanced"
         # the summoning host's model (ammo.config.yaml) anchors the LEAD seat
         self.primary = primary
+        # user-authored role assignment (slot id -> model id, ammo.config.yaml
+        # `roles`): the assigned model wins the seat that maps to its slot. This
+        # is authority, not a nudge — it outranks capability/memory scoring.
+        self.role_assignments = role_assignments or {}
         # per-system optimization specs (.ammo/preferences.yaml, limits.yaml)
         self.preferences = preferences or {}
         self.limits = limits or {}
@@ -287,6 +295,14 @@ class TeamFormer:
                 memory_bonus, reasons = self.memory.bonus(
                     node.id, position, self._memory_tag(task), objective=self.objective
                 )
+            # role assignment is authority: if the user assigned this model to the
+            # slot this position maps to, it wins the seat outright (no
+            # qualification required — the user is declaring intent).
+            assignment_bonus = 0.0
+            slot = tpl.POSITION_SLOT.get(position)
+            if slot and self.role_assignments.get(slot) == node.id:
+                assignment_bonus = _ASSIGNMENT_BONUS
+                reasons = list(reasons) + [f"assigned as {slot}"]
             # primary anchors the lead seat — but only when qualified for it,
             # and weaker than a capability match (+3), so it's a tie-breaker.
             primary_bonus = 0.0
@@ -306,7 +322,7 @@ class TeamFormer:
             if any(c in node.capabilities
                    for c in self.preferences.get("preferred_capabilities") or []):
                 pref_bonus += 1.0
-            final.append((base + memory_bonus + primary_bonus + pref_bonus,
+            final.append((base + memory_bonus + assignment_bonus + primary_bonus + pref_bonus,
                           node.id, reasons))
 
         if not final:

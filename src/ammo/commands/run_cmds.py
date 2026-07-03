@@ -14,7 +14,7 @@ from ammo.memory import MemoryAdvisor, MemoryStore, team_signature
 from ammo.paths import find_ammo_root
 from ammo.roles import RoleWorkspace
 from ammo.registry import RegistryError, SystemPackLoader, enabled_systems
-from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _resolve_objective, _role_memory
+from ammo.commands.common import _understand, _load_binding, _load_memory_advisor, _load_pack_for_task, _load_primary, _load_role_assignments, _resolve_objective, _role_memory
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
@@ -32,6 +32,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
     former = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
+        role_assignments=_load_role_assignments(root),
         preferences=pack.preferences if pack else None,
         limits=pack.limits if pack else None,
         workflows=pack.workflow_list if pack else None,
@@ -175,6 +176,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 graph, memory=_load_memory_advisor(root, args),
                 binding=_load_binding(root, task),
                 objective=_resolve_objective(root, args), primary=_load_primary(root),
+                role_assignments=_load_role_assignments(root),
                 preferences=pack.preferences if pack else None,
                 limits=pack.limits if pack else None,
                 workflows=pack.workflow_list if pack else None,

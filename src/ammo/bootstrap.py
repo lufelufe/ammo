@@ -63,6 +63,12 @@ def build_status(root: Path) -> str:
     )
     if config.models:
         lines.append(f"models: {', '.join(config.models)}")
+    if config.roles:
+        seats = " ".join(f"{slot}={model}" for slot, model in config.roles.items())
+        lines.append(f"roles: {seats}")
+    else:
+        lines.append("roles: (unset — `ammo roles set` to assign "
+                     "orchestrator/critic/worker/builder)")
     lines.append(f"objective: {config.default_objective}")
 
     systems = SystemPackLoader(root).available()

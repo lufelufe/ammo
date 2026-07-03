@@ -50,6 +50,14 @@ def _load_primary(root):
     return config.primary_model if config else None
 
 
+def _load_role_assignments(root):
+    """User-authored slot->model role assignment (ammo.config.yaml `roles`)."""
+    from ammo.config import load_config
+
+    config = load_config(root)
+    return dict(config.roles) if config else {}
+
+
 def _resolve_objective(root, args) -> str:
     """CLI flag wins; else the configured default; else balanced."""
     flag = getattr(args, "optimize", None)
