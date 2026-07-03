@@ -162,6 +162,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="With --real, allow paid API routes when resolving models.",
     )
     run_parser.add_argument(
+        "--read", nargs="*", metavar="PATH",
+        help="Ground the team in real files: read these paths (or the connected "
+             "system's source) into worker context before they answer.",
+    )
+    run_parser.add_argument(
         "--execute-tools",
         action="store_true",
         help="Execute permitted side-effecting tools in an isolated per-run sandbox.",

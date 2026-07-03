@@ -130,6 +130,16 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery P1 — Grounding: workers read real files before answering.**
+  `run --read <path…>` gathers a bounded, text-only, relevance-ordered slice
+  of real file content and injects it into every worker's context, emitting
+  real file_read evidence — so analysis/repo tasks are grounded instead of
+  hallucinated (measured live: the same self-eval question went from
+  confidence 0.5 "no evidence produced" to 0.82 "high", now citing files by
+  section). An implicit read of a connected system's source is authorized by
+  that system's PermissionGate; an explicit --read is an operator directive
+  read directly (like `cat`). Closes the biggest usability gap surfaced by
+  AMMO's own self-evaluation.
 - **Delivery P3+P2+P4 — verification and understanding complete the manifesto.**
   P3: `verification.yaml test_command` runs FOR REAL in the (kernel-confined)
   sandbox under `--execute-tools` — measured `test_result` evidence, honestly

@@ -68,10 +68,12 @@ class Runner:
         self.max_retries = max_retries
 
     def run(self, plan: ExecutionPlan, task: TaskVector, *,
-            system_context: str = "", role_context: Dict[str, str] = None) -> ExecutionResult:
+            system_context: str = "", role_context: Dict[str, str] = None,
+            grounding: str = "") -> ExecutionResult:
         """`system_context` is the pack's context.md (operating guidance);
-        `role_context` maps role -> that role's distilled memory (insights/last).
-        Both are injected into every worker's request context."""
+        `role_context` maps role -> that role's distilled memory (insights/last);
+        `grounding` is real file content read before the run (P1). All are
+        injected into every worker's request context."""
         graph = ExecutionGraph.from_plan(plan)
         responses: List[AdapterResponse] = []
         context: Dict[str, str] = {}
@@ -82,6 +84,8 @@ class Runner:
             step_context = dict(context)
             if system_context:
                 step_context["system_context"] = system_context[:2000]
+            if grounding:
+                step_context["grounding"] = grounding
             role_memory = role_context.get(step.role)
             if role_memory:
                 step_context["role_memory"] = role_memory[:1000]

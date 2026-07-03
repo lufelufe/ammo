@@ -60,7 +60,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
             current_plan, task,
             system_context=(pack.context or "") if pack else "",
             role_context=_role_memory(root, current_plan.selected_system, current_plan.roles),
+            grounding=(grounding.text if grounding else ""),
         )
+        # grounding reads are real evidence — attach to the lead response so the
+        # Confidence Engine counts what was actually read
+        if grounding and grounding.evidence and result.responses:
+            result.responses[0].evidence.extend(grounding.evidence)
 
         # tool execution + permission enforcement: workers' declared tools are
         # gated against permissions.yaml + .ammoignore, then (safely) executed.
@@ -122,6 +127,27 @@ def _cmd_run(args: argparse.Namespace) -> int:
             verification=pack.verification if pack else None,
         )
         return result, report, sandbox, permitted, denied
+
+    # P1 grounding: read real files into worker context before they answer.
+    # Sources: explicit --read paths, else the selected system's source_path.
+    grounding = None
+    explicit = list(getattr(args, "read", None) or [])
+    # explicit --read is an OPERATOR directive (their own repo, like `cat`) —
+    # read directly. The implicit "read the connected system's source" path
+    # touches an external mounted directory, so it goes through the gate.
+    read_targets, gate = explicit, None
+    if not read_targets and plan.selected_system and pack and pack.source_path:
+        from ammo.tools.permissions import PermissionGate
+
+        read_targets = [pack.source_path]
+        try:
+            gate = PermissionGate.from_pack(root, pack)
+        except Exception:
+            gate = None
+    if read_targets:
+        from ammo.tools.grounding import gather
+
+        grounding = gather(read_targets, root, gate=gate)
 
     result, report, sandbox, tool_permitted, tool_denied = _execute(plan)
 
@@ -202,6 +228,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 timestamp=now.isoformat(),
             )
 
+    if grounding and grounding.files_read:
+        print(f"grounding: read {len(grounding.files_read)} file(s)"
+              + (" (truncated to budget)" if grounding.truncated else ""))
     if plan.consensus:
         print(f"consensus: {plan.consensus['role']} sampled by "
               f"{1 + len(plan.consensus['models'])} models "
