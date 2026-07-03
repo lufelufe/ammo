@@ -57,8 +57,11 @@ def _cmd_efficiency(args: argparse.Namespace) -> int:
     for m in sorted(models, key=lambda m: (m["task_tag"], -model_efficiency(m))):
         eff = model_efficiency(m)
         eff_str = "inf" if eff == float("inf") else f"{eff:.0f}"
+        lat = m.get('average_latency') or 0
+        lat_str = f" {lat/1000:.1f}s" if lat else " —"
         print(f"  [{m['task_tag']}] {m['model_id']:22} conf {m['average_confidence']:<5} "
-              f"tokens {m.get('average_tokens') or 0:<7} cost ${m.get('average_cost') or 0:.4f} "
+              f"tokens {m.get('average_tokens') or 0:<7} cost ${m.get('average_cost') or 0:.4f}"
+              f" lat{lat_str} "
               f" eff {eff_str}")
 
     # exploration convergence per tag (deterministic epsilon schedule)

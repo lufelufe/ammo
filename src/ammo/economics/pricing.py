@@ -133,19 +133,26 @@ class PricingBook:
                 cost = float(reported)   # provider-reported real cost wins
             else:
                 cost = price.cost(tokens_in, tokens_out) if price else 0.0
+            latency = getattr(usage, "latency_ms", None) if usage else None
             bucket = by_model.setdefault(response.model, {
                 "model": response.model,
                 "billing": price.billing if price else "unknown",
                 "priced": price is not None or reported is not None,
                 "input_tokens": 0, "output_tokens": 0, "cost": 0.0,
+                "latency_ms": 0.0, "_latency_n": 0,
             })
             bucket["input_tokens"] += tokens_in
             bucket["output_tokens"] += tokens_out
             bucket["cost"] += cost
+            if latency is not None:
+                bucket["latency_ms"] += float(latency)
+                bucket["_latency_n"] += 1
 
         models = list(by_model.values())
         for m in models:
             m["cost"] = round(m["cost"], 6)
+            n = m.pop("_latency_n", 0)
+            m["latency_ms"] = round(m["latency_ms"] / n, 1) if n else None
         total_in = sum(m["input_tokens"] for m in models)
         total_out = sum(m["output_tokens"] for m in models)
         return {

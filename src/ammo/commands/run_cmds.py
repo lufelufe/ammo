@@ -190,7 +190,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     economics = PricingBook.load(root).run_economics(result.responses)
     model_usage = {
-        m["model"]: {"tokens": m["input_tokens"] + m["output_tokens"], "cost": m["cost"]}
+        m["model"]: {"tokens": m["input_tokens"] + m["output_tokens"], "cost": m["cost"],
+                     "latency_ms": m.get("latency_ms")}
         for m in economics["by_model"]
     }
 

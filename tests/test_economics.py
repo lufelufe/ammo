@@ -33,7 +33,8 @@ def test_response_to_dict_includes_usage():
     resp = AdapterResponse(role="r", model="m", output="o",
                            usage=Usage(input_tokens=10, output_tokens=5))
     assert resp.to_dict()["usage"] == {"input_tokens": 10, "output_tokens": 5,
-                                       "estimated": True, "cost_usd": None}
+                                       "estimated": True, "latency_ms": None,
+                                       "cost_usd": None}
 
 
 # --- pricing book -------------------------------------------------------------

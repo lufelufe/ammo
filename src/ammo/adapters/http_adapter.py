@@ -66,8 +66,14 @@ class HttpAdapter(BaseModelAdapter):
             body = {"model": vendor_model,
                     "messages": [{"role": "user", "content": prompt}]}
 
+        import time
+
+        started = time.perf_counter()
         status, payload = self._transport(self._profile.api_url, headers, body)
+        latency_ms = round((time.perf_counter() - started) * 1000, 1)
         text, usage = self._parse(status, payload)
+        if usage is not None:
+            usage.latency_ms = latency_ms
         return AdapterResponse(
             role=request.role,
             model=request.model,

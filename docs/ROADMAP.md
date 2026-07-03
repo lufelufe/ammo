@@ -130,6 +130,13 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — Real latency → measured speed objective.** Adapters stamp
+  `time.perf_counter()` wall-clock onto every call's `Usage.latency_ms`;
+  economics averages it per model, memory stores `average_latency` (carried
+  through dream rebuilds), and the `speed` objective now biases toward the
+  model with the lowest REAL latency for that tag — falling back to the token
+  proxy only when no latency is recorded yet. `ammo efficiency` prints a
+  per-model latency column.
 - **Delivery P1 — Grounding: workers read real files before answering.**
   `run --read <path…>` gathers a bounded, text-only, relevance-ordered slice
   of real file content and injects it into every worker's context, emitting

@@ -70,8 +70,7 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 ### Efficiency protocol (M17)
 - `codex_builder` pricing is a marked placeholder; update via `ammo pricing set`
   or attach the user's price-search module through the `PriceSource` hook.
-- Latency is proxied (latency_class + avg tokens); record real wall-clock per
-  member for a true speed objective.
+
 - `efficiency` report ranks models/teams; a per-task-category "recommended combo
   card" (best per objective, side by side) would make it directly actionable.
 - Local models priced 0 → efficiency=inf; consider a compute-cost estimate.

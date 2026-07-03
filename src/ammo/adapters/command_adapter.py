@@ -48,7 +48,10 @@ class CommandAdapter(BaseModelAdapter):
         }
 
     def execute(self, request: AdapterRequest) -> AdapterResponse:
+        import time
+
         prompt = _build_prompt(request)
+        started = time.perf_counter()
         if self._env:
             from ammo.providers.detector import expand_env
 
@@ -56,6 +59,7 @@ class CommandAdapter(BaseModelAdapter):
                                      env=expand_env(self._env))
         else:
             code, output = self._run(self._command, stdin=prompt)
+        latency_ms = round((time.perf_counter() - started) * 1000, 1)
         text = output.strip()
         if code != 0:
             text = text or f"(command exited {code})"
@@ -73,6 +77,8 @@ class CommandAdapter(BaseModelAdapter):
                 output_tokens=estimate_tokens(text),
                 estimated=True,
             )
+
+        usage.latency_ms = latency_ms   # real wall-clock, whichever usage path
 
         return AdapterResponse(
             role=request.role,

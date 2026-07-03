@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS model_performance (
     last_used_at       TEXT,
     average_tokens     REAL NOT NULL DEFAULT 0,
     average_cost       REAL NOT NULL DEFAULT 0,
+    average_latency    REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (model_id, task_tag)
 );
 
@@ -107,6 +108,7 @@ class MemoryStore:
             "model_performance": {
                 "average_tokens": "REAL NOT NULL DEFAULT 0",   # added in M17
                 "average_cost": "REAL NOT NULL DEFAULT 0",
+                "average_latency": "REAL NOT NULL DEFAULT 0",  # real wall-clock (P: speed)
             },
             "team_synergy": {
                 "average_cost": "REAL NOT NULL DEFAULT 0",     # added in M17
@@ -176,32 +178,38 @@ class MemoryStore:
             for model_id in model_ids:
                 usage = model_usage.get(model_id, {})
                 self._bump_model(model_id, tag, confidence_score, success, timestamp,
-                                 usage.get("tokens", 0.0), usage.get("cost", 0.0))
+                                 usage.get("tokens", 0.0), usage.get("cost", 0.0),
+                                 usage.get("latency_ms") or 0.0)
             self._bump_team(team_signature, tag, confidence_score, success,
                             estimated_cost or 0.0)
         return status
 
     def _bump_model(self, model_id, tag, score, success, timestamp,
-                    tokens: float = 0.0, cost: float = 0.0) -> None:
+                    tokens: float = 0.0, cost: float = 0.0, latency: float = 0.0) -> None:
         row = self.conn.execute(
-            "SELECT attempts, successes, average_confidence, average_tokens, average_cost "
-            "FROM model_performance WHERE model_id=? AND task_tag=?", (model_id, tag)
+            "SELECT attempts, successes, average_confidence, average_tokens, average_cost, "
+            "average_latency FROM model_performance WHERE model_id=? AND task_tag=?",
+            (model_id, tag)
         ).fetchone()
         if row:
             attempts, successes, avg = row["attempts"], row["successes"], row["average_confidence"]
             avg_tokens, avg_cost = row["average_tokens"] or 0.0, row["average_cost"] or 0.0
+            avg_lat = row["average_latency"] or 0.0
         else:
-            attempts, successes, avg, avg_tokens, avg_cost = 0, 0, 0.0, 0.0, 0.0
+            attempts, successes, avg, avg_tokens, avg_cost, avg_lat = 0, 0, 0.0, 0.0, 0.0, 0.0
         new_attempts = attempts + 1
         new_avg = (avg * attempts + (score or 0.0)) / new_attempts
         new_tokens = (avg_tokens * attempts + tokens) / new_attempts
         new_cost = (avg_cost * attempts + cost) / new_attempts
+        # latency averages only over calls that actually reported one (real runs)
+        new_lat = (avg_lat * attempts + latency) / new_attempts if latency else avg_lat
         self.conn.execute(
             "INSERT OR REPLACE INTO model_performance "
             "(model_id, task_tag, attempts, successes, average_confidence, last_used_at, "
-            " average_tokens, average_cost) VALUES (?,?,?,?,?,?,?,?)",
+            " average_tokens, average_cost, average_latency) VALUES (?,?,?,?,?,?,?,?,?)",
             (model_id, tag, new_attempts, successes + (1 if success else 0),
-             round(new_avg, 3), timestamp, round(new_tokens, 1), round(new_cost, 6)),
+             round(new_avg, 3), timestamp, round(new_tokens, 1), round(new_cost, 6),
+             round(new_lat, 1)),
         )
 
     def _bump_team(self, signature, tag, score, success, cost: float = 0.0) -> None:
@@ -357,15 +365,18 @@ class MemoryStore:
         """
         snapshot: Dict[str, Dict[str, float]] = {}
         for row in self.all_model_performance():
-            m = snapshot.setdefault(row["model_id"], {"attempts": 0, "tokens": 0.0, "cost": 0.0})
+            m = snapshot.setdefault(row["model_id"],
+                                    {"attempts": 0, "tokens": 0.0, "cost": 0.0, "latency": 0.0})
             attempts = row["attempts"] or 0
             m["tokens"] += (row["average_tokens"] or 0.0) * attempts
+            m["latency"] += (row["average_latency"] or 0.0) * attempts
             m["cost"] += (row["average_cost"] or 0.0) * attempts
             m["attempts"] += attempts
         return {
             model: {
                 "tokens": (v["tokens"] / v["attempts"]) if v["attempts"] else 0.0,
                 "cost": (v["cost"] / v["attempts"]) if v["attempts"] else 0.0,
+                "latency": (v["latency"] / v["attempts"]) if v["attempts"] else 0.0,
             }
             for model, v in snapshot.items()
         }
@@ -392,7 +403,8 @@ class MemoryStore:
                         continue
                     carried = snapshot.get(model_id, {})
                     self._bump_model(model_id, tag, score, success, run.get("timestamp"),
-                                     carried.get("tokens", 0.0), carried.get("cost", 0.0))
+                                     carried.get("tokens", 0.0), carried.get("cost", 0.0),
+                                     carried.get("latency", 0.0))
                 signature = run.get("team_signature")
                 if signature and all(
                     m in known for m in _signature_models(signature)

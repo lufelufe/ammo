@@ -45,6 +45,7 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     estimated: bool = True
+    latency_ms: Optional[float] = None  # real wall-clock of the call (None until measured)
     cost_usd: Optional[float] = None   # real cost when the provider reports it
 
     def to_dict(self) -> Dict[str, Any]:

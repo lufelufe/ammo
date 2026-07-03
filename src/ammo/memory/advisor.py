@@ -94,7 +94,7 @@ class MemoryAdvisor:
         if peak <= 0:
             return 0.0, []
         term = ECONOMY_WEIGHT * (1 - value / peak)
-        label = "cheap" if metric == "average_cost" else "light"
+        label = {"average_cost": "cheap", "average_latency": "fast"}.get(metric, "light")
         return term, ([f"{label} in {tag} history"] if term >= 0.25 else [])
 
     def _tag_attempts(self, tag: str) -> int:
@@ -156,7 +156,11 @@ class MemoryAdvisor:
             total += term
             reasons += why
         elif objective == "speed":
-            term, why = self._economy_term(model_id, tag, "average_tokens")
+            # real wall-clock when we have it; fall back to the token proxy
+            has_latency = any((s.get("average_latency") or 0) > 0
+                              for (m, t), s in self._model_stats.items() if t == tag)
+            metric = "average_latency" if has_latency else "average_tokens"
+            term, why = self._economy_term(model_id, tag, metric)
             total += term
             reasons += why
 
