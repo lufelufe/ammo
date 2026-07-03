@@ -20,6 +20,7 @@ from ammo.commands.economics_cmds import _cmd_pricing_show, _cmd_pricing_set, _c
 from ammo.commands.eval_cmds import _cmd_eval, _cmd_eval_system, _cmd_eval_systems
 from ammo.commands.connect_cmds import _cmd_new_system, _cmd_connect, _cmd_disconnect, _cmd_adopt
 from ammo.commands.provider_cmds import _cmd_providers, _cmd_bind, _cmd_role_log
+from ammo.commands.shell import _cmd_enter
 
 TAGLINE = "AMMO is not a router. AMMO is the adaptive orchestration kernel of a Personal AI OS."
 
@@ -64,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
         "status", help="One-screen summary of host, models, systems, and memory.",
     )
     status_parser.set_defaults(func=_cmd_status)
+
+    enter_parser = subparsers.add_parser(
+        "enter",
+        help="Open an interactive AMMO shell — stay inside, type requests, `exit` to leave.",
+    )
+    enter_parser.set_defaults(func=_cmd_enter)
 
     doctor_parser = subparsers.add_parser(
         "doctor",

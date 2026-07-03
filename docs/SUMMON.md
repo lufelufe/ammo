@@ -54,3 +54,11 @@ use the configured objective when no flag is given. No secrets.
 Host detection order: explicit `--host` flag (shim) → environment fingerprints
 (`CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` → claude-code, `CODEX_*` → codex) →
 `terminal`.
+
+## Interactive mode (`ammo enter`)
+
+`ammo enter` opens a stay-inside session: type a request and it runs, or type a
+subcommand (`status`, `providers`, `feedback <id> good`, …). Configure once with
+`set` — `set mock|real`, `set optimize <axis>`, `set read <path…>`,
+`set show on|off` — and every subsequent request inherits it. Leave with `exit`,
+`/ammo exit`, or Ctrl-D.

@@ -130,6 +130,12 @@ unbuilt.**
   passed / independent critic pass / model agreement raise it; unresolved
   objections / high risk / missing evidence / mock-only lower it. `run` now
   writes `confidence_report.json` and prints a card with `--show-confidence`.
+- **Delivery — Interactive shell (`ammo enter`).** A stay-inside session:
+  each line is an AMMO command — a bare line runs as a request, subcommands
+  (status/providers/feedback/…) run verbatim. `set` configures per-session
+  defaults once (real/mock, optimize axis, grounding --read paths,
+  show-confidence) and every subsequent run inherits them; `exit` / `/ammo
+  exit` / Ctrl-D leaves. Dispatch is injected so the loop tests fully offline.
 - **Delivery — Real latency → measured speed objective.** Adapters stamp
   `time.perf_counter()` wall-clock onto every call's `Usage.latency_ms`;
   economics averages it per model, memory stores `average_latency` (carried

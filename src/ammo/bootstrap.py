@@ -76,7 +76,8 @@ def build_status(root: Path) -> str:
             stats = memory.stats()
         if stats["total_runs"]:
             lines.append(f"memory: {stats['total_runs']} run(s) recorded")
-    lines.append('ready — `ammo run --mock|--real "..."`, `ammo status` anytime.')
+    lines.append('ready — `ammo enter` for a stay-inside session, '
+                 'or `ammo run --real "..."` / `ammo status` anytime.')
     return "\n".join(lines)
 
 
