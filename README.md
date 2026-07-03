@@ -89,8 +89,15 @@ cd ammo
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # one-time
 ```
 
-The `./ammo` launcher uses that `.venv` automatically — you never need to
-activate it. (If you skip the setup, `./ammo` prints the exact command to run.)
+Two equivalent ways to run it in a terminal:
+
+- **`./ammo …`** — the launcher uses that `.venv` automatically; no activation
+  needed. (If you skip the setup, it prints the exact command to run.)
+- **`ammo …`** — after `source .venv/bin/activate`, the `ammo` console script is
+  on your `PATH`, so you can drop the `./`.
+
+Both are the same program; the examples below use `./ammo`, but plain `ammo`
+works once the venv is activated.
 
 ## Controls — how to operate AMMO
 
@@ -100,7 +107,7 @@ AMMO is summoned differently depending on where you are:
 
 | You are in… | Summon with | Runs from |
 |---|---|---|
-| **A terminal** | `./ammo start` | the **repo root** (the folder you cloned) |
+| **A terminal** | `./ammo start` (or `ammo start` with the venv activated) | the **repo root** (the folder you cloned) |
 | **Claude Code** | just say **`ammo`** | any dir — `CLAUDE.md` carries the summon line (`--host claude-code`) |
 | **Codex** | just say **`ammo`** | reads `AGENTS.md` natively → its *Summon* section |
 | **Qwen / Gemini** | just say **`ammo`** | pointer files `QWEN.md` / `GEMINI.md` → `AGENTS.md` |
