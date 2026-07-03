@@ -47,7 +47,9 @@ def _seed(root):
 
 def _seed_journal(root, entries=30):
     role_dir = root / "systems" / "coding" / "roles" / "builder"
-    role_dir.mkdir(parents=True)
+    # exist_ok: the `root` fixture copies the live systems/ tree, which may
+    # already carry a gitignored roles/builder/ from a prior real run.
+    role_dir.mkdir(parents=True, exist_ok=True)
     with (role_dir / "journal.jsonl").open("w", encoding="utf-8") as fh:
         for i in range(entries):
             fh.write(json.dumps({"run_id": f"r{i}", "timestamp": f"t{i}",
@@ -194,7 +196,7 @@ def test_orphan_sandboxes_are_pruned_referenced_kept(root):
 def test_insights_name_the_best_model_for_the_seat(root):
     # journal turns cross-referenced with run confidences -> per-model quality
     role_dir = root / "systems" / "coding" / "roles" / "builder"
-    role_dir.mkdir(parents=True)
+    role_dir.mkdir(parents=True, exist_ok=True)  # tolerate a copied prior-run dir
     with MemoryStore.open(root) as s:
         for i in range(30):
             model = "codex_builder" if i % 2 else "kimi_coder_mock"
