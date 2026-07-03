@@ -56,21 +56,28 @@ flowchart TB
 
     task --> TU
 
-    subgraph ADAPTERS["adapter boundary — the only place vendors live"]
+    EX <==>|"the kernel speaks<br/>only this contract"| CONTRACT{{"ADAPTER CONTRACT<br/><i>one stable interface</i>"}}
+
+    subgraph PLUGINS["models are plugins — each adapts itself to the contract"]
         direction LR
         A1["Claude<br/>adapter"]
         A2["Codex<br/>adapter"]
         A3["Local / OSS<br/>adapter"]
     end
 
-    EX ==> ADAPTERS
+    A1 -. "conforms to" .-> CONTRACT
+    A2 -. "conforms to" .-> CONTRACT
+    A3 -. "conforms to" .-> CONTRACT
 ```
 
-Nothing above the adapter boundary knows what a "Claude" or a "Codex" is. The
-kernel speaks one stable adapter contract; adapters translate it to concrete
-providers (authenticated subscription CLIs, paid API/HTTP, or a local model
-pool). That is what makes *"models are plugins"* enforceable rather than
-aspirational.
+The adapter boundary is not a pipe the kernel dumps work into — it is a single
+stable **contract** the kernel speaks. Each vendor adapter *adapts itself to
+that contract* (the arrows point **up, toward the engine**: adapters conform to
+the kernel, never the reverse). Nothing above the boundary knows what a "Claude"
+or a "Codex" is; adapters translate the one contract to concrete providers
+(authenticated subscription CLIs, paid API/HTTP, or a local model pool). That
+inversion — models fit the engine, not the engine the models — is what makes
+*"models are plugins"* enforceable rather than aspirational.
 
 ### The kernel loop, in one line
 
