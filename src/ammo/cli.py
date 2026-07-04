@@ -94,6 +94,8 @@ def build_parser() -> argparse.ArgumentParser:
     roles_set.add_argument("--critic", metavar="MODEL", help="Model for the critic seat.")
     roles_set.add_argument("--worker", metavar="MODEL", help="Model for the simple-worker seat.")
     roles_set.add_argument("--builder", metavar="MODEL", help="Model for the builder seat.")
+    roles_set.add_argument("--interactive", action="store_true",
+                           help="Force the numbered interview even without a TTY.")
     roles_set.add_argument("--allow-paid", action="store_true", help="Include paid API models.")
     roles_set.set_defaults(func=_cmd_roles_set)
 

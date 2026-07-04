@@ -110,23 +110,34 @@ def _cmd_roles_set(args: argparse.Namespace) -> int:
     }
     assignments = {k: v for k, v in flags.items() if v}
 
-    interactive = not assignments and sys.stdin.isatty()
+    interactive = not assignments and (getattr(args, "interactive", False)
+                                       or sys.stdin.isatty())
     if interactive:
         usable = _usable_models(getattr(args, "allow_paid", False))
         plans = roleplan.plan_roles(root, usable_models=usable, current=_load_roles(root))
-        print("Role interview (Enter = proposed, '-' = skip):\n")
+        print("Role interview — for each seat type a number (or a model id), "
+              "Enter for the ✓ default, or '-' to skip.\n")
         for p in plans:
-            ids = [c["model"] for c in p.candidates]
             print(f"● {p.label} — {p.summary}")
-            print(f"    options: {', '.join(ids)}")
             default = p.current or p.proposed
-            answer = input(f"    {p.label} [{default or 'skip'}]: ").strip()
+            for i, c in enumerate(p.candidates, 1):
+                mark = "✓" if c["qualified"] else " "
+                tags = f"[{c['cost']}/{c['latency']}{'/warm' if c['warm'] else ''}]"
+                flag = "  ← default" if c["model"] == default else ""
+                cur = "  (current)" if c["model"] == p.current else ""
+                print(f"    {i}) {mark} {c['model']:<20} {tags}{flag}{cur}")
+            answer = input(f"    → {p.label} [{default or 'skip'}]: ").strip()
+            print()
             if answer == "-":
                 continue
-            choice = answer or default
+            choice = default
+            if answer:
+                if answer.isdigit() and 1 <= int(answer) <= len(p.candidates):
+                    choice = p.candidates[int(answer) - 1]["model"]
+                else:
+                    choice = answer
             if choice:
                 assignments[p.slot] = choice
-            print()
 
     if not assignments:
         print("Nothing to set. Provide --orchestrator/--critic/--worker/--builder, "
