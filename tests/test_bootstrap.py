@@ -78,8 +78,9 @@ def test_first_summon_configures_safe_defaults(root, capsys):
     assert {"claude_a_opus", "claude_b_fable", "claude_a_haiku",
             "claude_a_sonnet", "codex_gpt5"} <= set(config.models)
     assert config.default_objective == "balanced"
-    # permission-granting steps are pointed to, never auto-applied
-    assert "ammo connect" in out and "ammo bind" in out
+    # the workspace grant is pointed to, never auto-applied on a non-interactive summon
+    assert "ammo connect" in out
+    assert config.roles == {}                              # roles not auto-assigned either
     assert not (root / "systems" / "root").exists()
 
 

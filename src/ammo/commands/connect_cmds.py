@@ -34,6 +34,72 @@ def _ask_access() -> Optional[bool]:
         print("Please answer 'r' (read-only) or 'w' (read-write).")
 
 
+def _prompt(msg: str) -> str:
+    """input() that treats end-of-input as skip (piped / non-tty friendly)."""
+    try:
+        return input(msg).strip()
+    except (EOFError, OSError):
+        return "-"
+
+
+def _connected_dirs(root) -> list:
+    """(system_id, source_path) for every already-connected external directory."""
+    from ammo.registry import SystemPackLoader
+
+    out = []
+    try:
+        for p in SystemPackLoader(root).load_all():
+            if p.source_path:
+                out.append((p.id, p.source_path))
+    except Exception:
+        pass
+    return out
+
+
+def _workspace_gate(root) -> Optional[str]:
+    """Interactive workspace step: pick the directory AMMO will work in.
+
+    Recommends previously-connected directories (kept as-is); otherwise asks for
+    a path and connects it by reference (asking read-only vs read-write). Returns
+    the system id in play, or None if skipped. Only ever acts on explicit input —
+    filesystem access is never granted silently.
+    """
+    from ammo.connect import ConnectError, SystemConnector
+
+    prior = _connected_dirs(root)
+    print("Connect a directory for AMMO to work in (grants filesystem access).")
+    if prior:
+        print("  previously connected:")
+        for i, (pid, sp) in enumerate(prior, 1):
+            print(f"    {i}) {sp}   (as '{pid}')")
+        ans = _prompt("  → keep one [number], type a new path, or '-' to skip: ")
+    else:
+        print("  none yet.")
+        ans = _prompt("  → directory path to connect (or '-' to skip): ")
+
+    if ans in ("-", "", "done", "skip"):
+        print("  skipped — connect later with `ammo connect <path>`.\n")
+        return prior[0][0] if (prior and ans == "") else None
+    if ans.isdigit() and prior and 1 <= int(ans) <= len(prior):
+        pid, sp = prior[int(ans) - 1]
+        print(f"  keeping {sp}\n")
+        return pid
+
+    src = Path(ans).expanduser()
+    if not src.is_dir():
+        print(f"  '{src}' is not an existing directory — skipped.\n")
+        return None
+    writable = _ask_access()
+    try:
+        path = SystemConnector(root).connect(str(src), writable=(writable is True))
+    except ConnectError as exc:
+        print(f"  couldn't connect: {exc}\n")
+        return None
+    access = "read-write" if writable else "read-only"
+    print(f"  ✓ connected {src}  ({access})\n")
+    return Path(path).name
+
+
 def _cmd_connect(args: argparse.Namespace) -> int:
     if args.read_only and args.writable:
         print("Error: choose either --read-only or --writable, not both.")

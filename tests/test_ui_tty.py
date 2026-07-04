@@ -47,12 +47,11 @@ def test_first_summon_wizard_interactive(root):
     child.expect(r"\[2/5\] Usable models:")
     child.expect(r"preferred set\?")
     child.sendline("claude_a_opus")               # narrow the set by typing ids
-    child.expect(r"\[3/5\] Workspace")
-    child.expect(r"\[4/5\] Default objective")
+    child.expect(r"\[3/5\] Default objective")
     child.sendline("cost")
     child.expect(r"Saved ammo\.config\.yaml")
-    # [5/5] the engine -> model -> role gates open inline
-    child.expect(r"\[5/5\] Team roles")
+    # [4/5] the engine -> model -> role gates open inline
+    child.expect(r"\[4/5\] Team roles")
     child.expect(r"Gate 1")                       # engine gate
     child.sendline("1")                           # first ready engine
     child.expect(r"Gate 2")                       # its models
@@ -61,6 +60,10 @@ def test_first_summon_wizard_interactive(root):
     child.sendline("1")                           # orchestrator
     child.expect(r"Gate 1")                       # loops back = member seated
     child.sendline("done")
+    # [5/5] workspace directory gate — skip here
+    child.expect(r"\[5/5\] Workspace")
+    child.expect(r"directory")
+    child.sendline("-")
     child.expect(r"ready")
     child.expect(pexpect.EOF)
     child.close()
@@ -70,6 +73,35 @@ def test_first_summon_wizard_interactive(root):
     assert config["models"] == ["claude_a_opus"]  # the typed answer stuck
     assert config["default_objective"] == "cost"
     assert config.get("roles", {}).get("orchestrator")   # a member was seated via gates
+
+
+def test_first_summon_workspace_connects_a_directory(root, tmp_path):
+    """The [5/5] workspace gate connects a typed directory by reference."""
+    work = tmp_path / "myproject"
+    work.mkdir()
+    child = _spawn(root, "start", "--host", "terminal")
+    child.expect(r"Use it as the primary model\? \[Y/n\]")
+    child.sendline("y")
+    child.expect(r"preferred set\?")
+    child.sendline("y")
+    child.expect(r"\[3/5\] Default objective")
+    child.sendline("")
+    child.expect(r"\[4/5\] Team roles")
+    child.expect(r"Gate 1")
+    child.sendline("done")                        # skip roles for this test
+    child.expect(r"\[5/5\] Workspace")
+    child.expect(r"directory")
+    child.sendline(str(work))                     # type a real directory
+    child.expect(r"read-\[w\]rite\? \[r/w\]")     # access gate
+    child.sendline("r")
+    child.expect(r"connected")
+    child.expect(pexpect.EOF)
+    child.close()
+    assert child.exitstatus == 0
+    manifest = yaml.safe_load(
+        (root / "systems" / "myproject" / ".ammo" / "manifest.yaml").read_text(encoding="utf-8"))
+    assert manifest["source_path"] == str(work)
+    assert manifest["writable"] is False          # 'r' → read-only
 
 
 def test_repeat_summon_skips_the_wizard(root):

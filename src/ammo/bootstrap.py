@@ -172,19 +172,14 @@ def run_start(
         elif answer and answer.lower() not in {"y", "yes"}:
             chosen = [m.strip() for m in answer.split(",") if m.strip()]
 
-    # [3/5] workspace — grants permissions, so never auto-applied
-    print("[3/5] Workspace: connecting a directory grants filesystem access, so it")
-    print("      stays explicit — use `ammo connect <path>` (asks read-only vs")
-    print("      read-write) and `ammo bind <system>` for a per-system team.")
-
-    # [4/5] objective
+    # [3/5] objective
     objective = "balanced"
     if interactive:
-        answer = ask("[4/5] Default objective [balanced/performance/cost/speed] (Enter=balanced): ").strip().lower()
+        answer = ask("[3/5] Default objective [balanced/performance/cost/speed] (Enter=balanced): ").strip().lower()
         if answer in {"performance", "cost", "speed"}:
             objective = answer
     else:
-        print("[4/5] Default objective: balanced (change later with `ammo start --reconfigure`)")
+        print("[3/5] Default objective: balanced (change later with `ammo start --reconfigure`)")
 
     config = AmmoConfig(
         host=host,
@@ -197,11 +192,11 @@ def run_start(
     path = save_config(root, config)
     print(f"✓ Saved {path.name}")
 
-    # [5/5] team roles — the engine → model → role gates. Interactive terminals
-    # run them inline now; non-interactive/agent summons get the setup-step
-    # pointer in the ready summary instead (the host drives the gates as cards).
+    # [4/5] team roles — the engine → model → role gates. Interactive terminals
+    # run them inline; non-interactive/agent summons get the setup-step pointer
+    # in the ready summary instead (the host drives the gates as cards).
     if interactive:
-        print("[5/5] Team roles — assign who plays each seat (engine → model → role):")
+        print("[4/5] Team roles — assign who plays each seat (engine → model → role):")
         from ammo.commands.roles_cmds import _gate_interview
         from ammo.roleplan import apply_roles
 
@@ -209,7 +204,18 @@ def run_start(
         if assignments:
             apply_roles(root, assignments)
     else:
-        print("[5/5] Team roles: not assigned — see the setup step below.")
+        print("[4/5] Team roles: not assigned — see the setup step below.")
+
+    # [5/5] workspace — the directory AMMO works in. Explicit filesystem grant, so
+    # only ever from interactive input; a non-interactive summon just points.
+    if interactive:
+        print("[5/5] Workspace — the directory AMMO works in:")
+        from ammo.commands.connect_cmds import _workspace_gate
+
+        _workspace_gate(root)
+    else:
+        print("[5/5] Workspace: connecting a directory grants filesystem access, so it\n"
+              "      stays explicit — `ammo connect <path>` (asks read-only vs read-write).")
 
     print(build_status(root))
     return 0
