@@ -79,6 +79,20 @@ class AvailabilityDetector:
         return ProviderStatus(profile, False, f"unknown kind '{profile.kind}'", [])
 
     def detect_all(self, catalog: List[ProviderProfile]) -> List[ProviderStatus]:
+        # Test/CI hook: AMMO_FAKE_READY_PROVIDERS=<comma-separated profile ids>
+        # marks those ready (with their models) and skips real auth subprocesses,
+        # so detection is deterministic and instant. No effect when unset.
+        fake = self._env.get("AMMO_FAKE_READY_PROVIDERS")
+        if fake:
+            ready = {p.strip() for p in fake.split(",") if p.strip()}
+            return [
+                ProviderStatus(
+                    p, p.id in ready,
+                    "authenticated (test)" if p.id in ready else "not ready (test)",
+                    list(p.models) if p.id in ready else [],
+                )
+                for p in catalog
+            ]
         return [self.detect(p) for p in catalog]
 
     # -- per-kind ----------------------------------------------------------

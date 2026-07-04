@@ -56,50 +56,51 @@ def _connected_dirs(root) -> list:
     return out
 
 
-def _workspace_gate(root) -> Optional[str]:
-    """Interactive workspace step: pick the directory AMMO will work in.
+def _workspace_gate(root) -> list:
+    """Interactive workspace step: connect one or more directories AMMO works in.
 
-    Recommends previously-connected directories (kept as-is); otherwise asks for
-    a path and connects it by reference (asking read-only vs read-write). Returns
-    the system id in play, or None if skipped. Only ever acts on explicit input —
-    filesystem access is never granted silently.
+    Surfaces already-connected directories (previous sessions are recommended by
+    being shown — type 'done' to keep them), then loops: enter a path, choose
+    read-only/read-write, and (for a new dir) set .ammoignore. Returns the list of
+    newly connected system ids. Only ever acts on explicit input — filesystem
+    access is never granted silently.
     """
     from ammo.connect import ConnectError, SystemConnector
 
-    prior = _connected_dirs(root)
-    print("Connect a directory for AMMO to work in (grants filesystem access).")
-    if prior:
-        print("  previously connected:")
-        for i, (pid, sp) in enumerate(prior, 1):
-            print(f"    {i}) {sp}   (as '{pid}')")
-        ans = _prompt("  → keep one [number], type a new path, or '-' to skip: ")
+    print("Connect one or more directories for AMMO to work in (grants filesystem access).")
+    newly: list = []
+    while True:
+        prior = _connected_dirs(root)
+        if prior:
+            print("  connected so far:")
+            for pid, sp in prior:
+                print(f"    • {sp}   (as '{pid}')")
+        ans = _prompt("  → path to connect (or 'done' to finish): ")
+        if ans in ("-", "", "done", "skip", "q"):
+            break
+        src = Path(ans).expanduser()
+        if not src.is_dir():
+            print(f"  '{src}' is not an existing directory.\n")
+            continue
+        writable = _ask_access()
+        try:
+            path = SystemConnector(root).connect(str(src), writable=(writable is True))
+        except ConnectError as exc:
+            print(f"  couldn't connect: {exc}\n")
+            continue
+        system_id = Path(path).name
+        print(f"  ✓ connected {src}  ({'read-write' if writable else 'read-only'})")
+        _ammoignore_gate(root, system_id, src)
+        newly.append(system_id)
+
+    if newly:
+        print(f"  connected {len(newly)} new director"
+              f"{'y' if len(newly) == 1 else 'ies'}.\n")
+    elif not _connected_dirs(root):
+        print("  none connected — do it later with `ammo connect <path>`.\n")
     else:
-        print("  none yet.")
-        ans = _prompt("  → directory path to connect (or '-' to skip): ")
-
-    if ans in ("-", "", "done", "skip"):
-        print("  skipped — connect later with `ammo connect <path>`.\n")
-        return prior[0][0] if (prior and ans == "") else None
-    if ans.isdigit() and prior and 1 <= int(ans) <= len(prior):
-        pid, sp = prior[int(ans) - 1]
-        print(f"  keeping {sp}\n")
-        return pid
-
-    src = Path(ans).expanduser()
-    if not src.is_dir():
-        print(f"  '{src}' is not an existing directory — skipped.\n")
-        return None
-    writable = _ask_access()
-    try:
-        path = SystemConnector(root).connect(str(src), writable=(writable is True))
-    except ConnectError as exc:
-        print(f"  couldn't connect: {exc}\n")
-        return None
-    access = "read-write" if writable else "read-only"
-    system_id = Path(path).name
-    print(f"  ✓ connected {src}  ({access})")
-    _ammoignore_gate(root, system_id, src)
-    return system_id
+        print()
+    return newly
 
 
 # always worth protecting; matched by name/glob within the connected directory.

@@ -31,7 +31,10 @@ def root(tmp_path):
 
 
 def _spawn(root, *argv, timeout=45):
-    env = dict(os.environ, AMMO_ROOT=str(root))
+    # deterministic + instant provider detection (no live `claude auth status`
+    # subprocesses), so the gate tests don't flake on real auth timing.
+    env = dict(os.environ, AMMO_ROOT=str(root),
+               AMMO_FAKE_READY_PROVIDERS="claude-code,claude-code-b,codex")
     child = pexpect.spawn(PYTHON, ["-m", "ammo", *argv], env=env,
                           encoding="utf-8", timeout=timeout)
     return child
@@ -62,8 +65,8 @@ def test_first_summon_wizard_interactive(root):
     child.sendline("done")
     # [5/5] workspace directory gate — skip here
     child.expect(r"\[5/5\] Workspace")
-    child.expect(r"directory")
-    child.sendline("-")
+    child.expect(r"path to connect")
+    child.sendline("done")
     child.expect(r"ready")
     child.expect(pexpect.EOF)
     child.close()
@@ -75,11 +78,13 @@ def test_first_summon_wizard_interactive(root):
     assert config.get("roles", {}).get("orchestrator")   # a member was seated via gates
 
 
-def test_first_summon_workspace_connects_a_directory(root, tmp_path):
-    """The [5/5] workspace gate connects a typed directory by reference."""
+def test_first_summon_workspace_connects_multiple_directories(root, tmp_path):
+    """The [5/5] workspace gate loops to connect more than one directory."""
     work = tmp_path / "myproject"
     work.mkdir()
     (work / "node_modules").mkdir()               # a noise dir → recommended excl.
+    work2 = tmp_path / "otherproject"
+    work2.mkdir()
     child = _spawn(root, "start", "--host", "terminal", timeout=90)
     child.expect(r"Use it as the primary model\? \[Y/n\]")
     child.sendline("y")
@@ -91,23 +96,36 @@ def test_first_summon_workspace_connects_a_directory(root, tmp_path):
     child.expect(r"Gate 1")
     child.sendline("done")                        # skip roles for this test
     child.expect(r"\[5/5\] Workspace")
-    child.expect(r"directory")
-    child.sendline(str(work))                     # type a real directory
-    child.expect(r"read-\[w\]rite\? \[r/w\]")     # access gate
+    # first directory
+    child.expect(r"path to connect")
+    child.sendline(str(work))
+    child.expect(r"read-\[w\]rite\? \[r/w\]")
     child.sendline("r")
-    child.expect(r"connected")
     child.expect(r"Exclude sensitive")            # .ammoignore gate
     child.sendline("y")
     child.expect(r"excluding")
+    # loop → second directory
+    child.expect(r"path to connect")
+    child.sendline(str(work2))
+    child.expect(r"read-\[w\]rite\? \[r/w\]")
+    child.sendline("w")
+    child.expect(r"Exclude sensitive")
+    child.sendline("n")                           # keep default for the second
+    child.expect(r"path to connect")
+    child.sendline("done")
+    child.expect(r"ready")
     child.expect(pexpect.EOF)
     child.close()
     assert child.exitstatus == 0
-    manifest = yaml.safe_load(
+
+    m1 = yaml.safe_load(
         (root / "systems" / "myproject" / ".ammo" / "manifest.yaml").read_text(encoding="utf-8"))
-    assert manifest["source_path"] == str(work)
-    assert manifest["writable"] is False          # 'r' → read-only
+    m2 = yaml.safe_load(
+        (root / "systems" / "otherproject" / ".ammo" / "manifest.yaml").read_text(encoding="utf-8"))
+    assert m1["source_path"] == str(work) and m1["writable"] is False   # 'r'
+    assert m2["source_path"] == str(work2) and m2["writable"] is True    # 'w'
     ignore = (root / "systems" / "myproject" / ".ammoignore").read_text(encoding="utf-8")
-    assert ".env" in ignore and "node_modules/" in ignore   # secrets + detected noise
+    assert ".env" in ignore and "node_modules/" in ignore
 
 
 def test_repeat_summon_skips_the_wizard(root):
