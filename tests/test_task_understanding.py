@@ -170,6 +170,23 @@ def test_latest_does_not_trigger_tests():
     assert vector.needs_tests is False
 
 
+def test_trivial_or_advisory_coding_change_is_not_high_risk():
+    """A small-scope or advisory coding change routes to a lighter team, not the
+    full high-risk one. Real changes and destructive ops stay high."""
+    a = TaskAnalyzer(systems=[])
+    # trivial + advisory
+    assert a.analyze("pyproject 설명 문구 고치는 작은 패치를 제안해줘").risk == "medium"
+    # trivial alone (a typo fix)
+    assert a.analyze("README 오타 하나 고쳐줘").risk == "medium"
+    # advisory alone, English
+    assert a.analyze("suggest a one-line fix to the wording").risk == "medium"
+    # a genuine fix/refactor with no small-scope signal stays high
+    assert a.analyze("이 함수 리팩터링 해줘").risk == "high"
+    assert a.analyze("이 python repo 버그 고쳐줘").risk == "high"
+    # destructive wins regardless of a small-scope word
+    assert a.analyze("작은 마이그레이션이지만 prod db 초기화해줘").risk == "high"
+
+
 # --- routing metadata integration ------------------------------------------
 
 def test_load_systems_routing_reads_four_packs(monkeypatch):

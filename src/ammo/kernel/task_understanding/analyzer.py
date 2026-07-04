@@ -177,6 +177,10 @@ class TaskAnalyzer:
         if sg.contains(text, sg.DESTRUCTIVE):
             return "high"
         if domain == "coding" and intent in {"debug_and_patch", "implement", "refactor"}:
+            # a small-scope or advisory change isn't high-risk — a one-line/typo
+            # fix or a "suggest a patch" doesn't warrant the full high-risk team.
+            if sg.contains(text, sg.TRIVIAL) or sg.contains(text, sg.ADVISORY):
+                return "medium"
             return "high"
         if sg.contains(text, sg.MONEY_MOVE):
             return "high"

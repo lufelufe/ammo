@@ -107,6 +107,22 @@ MONEY_MOVE = [
     "buy", "sell", "transfer", "wire",
 ]
 
+# Small-scope, low-stakes edits — a coding change carrying these is not
+# high-risk (a one-line/typo/wording/comment fix, not a feature or migration).
+TRIVIAL = [
+    "작은", "사소", "소소", "오타", "오탈자", "문구", "주석", "이름만",
+    "typo", "tiny", "minor", "trivial", "one-line", "one line", "wording",
+    "comment", "docstring", "cosmetic", "nit", "rename",
+]
+
+# Advisory / plan-only — the user wants a proposal or approach, not an applied
+# change. Also lowers a coding change's risk (nothing is written yet).
+ADVISORY = [
+    "제안", "조언", "방법을", "방안", "어떻게 하면", "계획만", "검토만",
+    "suggest", "propose", "recommend", "recommendation", "advise",
+    "how should", "how to", "best way", "outline", "plan out",
+]
+
 DECISION = [
     "사야", "팔아", "추천",
     "should i buy", "should i sell", "recommend",
