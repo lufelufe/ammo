@@ -150,6 +150,26 @@ def test_configured_objective_drives_plan_team(ammo_root, capsys):
     assert "codex_builder" in flag_team                      # flag overrides config
 
 
+def test_status_shows_role_setup_step_until_assigned(root):
+    # roles unset on an agent host → the summon directs the host to run the
+    # card interview.
+    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_a_planner"))
+    out = build_status(root)
+    assert "SETUP STEP" in out
+    assert "ammo roles plan --json" in out          # host-directed interview
+
+    # a bare terminal is pointed at the interactive command instead.
+    save_config(root, AmmoConfig(host="terminal", primary_model="claude_a_planner"))
+    assert "ammo roles set" in build_status(root)
+
+    # once roles exist, the setup step is gone and the assignment is shown.
+    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_b_critic",
+                                 roles={"orchestrator": "claude_b_critic"}))
+    out = build_status(root)
+    assert "SETUP STEP" not in out
+    assert "roles: orchestrator=claude_b_critic" in out
+
+
 def test_cli_start_and_status(ammo_root, capsys, monkeypatch):
     import ammo.bootstrap as bootstrap
 

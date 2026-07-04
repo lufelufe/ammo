@@ -67,8 +67,7 @@ def build_status(root: Path) -> str:
         seats = " ".join(f"{slot}={model}" for slot, model in config.roles.items())
         lines.append(f"roles: {seats}")
     else:
-        lines.append("roles: (unset — `ammo roles set` to assign "
-                     "orchestrator/critic/worker/builder)")
+        lines.append("roles: (not assigned yet — setup step below)")
     lines.append(f"objective: {config.default_objective}")
 
     systems = SystemPackLoader(root).available()
@@ -84,7 +83,35 @@ def build_status(root: Path) -> str:
             lines.append(f"memory: {stats['total_runs']} run(s) recorded")
     lines.append('ready — `ammo enter` for a stay-inside session, '
                  'or `ammo run --real "..."` / `ammo status` anytime.')
+    if not config.roles:
+        lines.append("")
+        lines.append(roles_setup_step(config.host))
     return "\n".join(lines)
+
+
+def roles_setup_step(host: Optional[str]) -> str:
+    """The 'assign your team roles' setup step, shown until roles exist.
+
+    On an agent host (claude-code, codex, …) the host owns the UI, so this
+    directs the host to run the interview as cards. In a bare terminal it points
+    the user at the interactive `ammo roles set`.
+    """
+    if host and host != "terminal":
+        return (
+            "⚙ SETUP STEP — your team's roles aren't assigned yet.\n"
+            f"  host ({host}): run the role interview now. Read the choices with\n"
+            "    ammo roles plan --json\n"
+            "  then ask the user seat by seat — orchestrator / critic / simple\n"
+            "  worker / builder — and save the answers with\n"
+            "    ammo roles set --orchestrator <id> --critic <id> "
+            "--worker <id> --builder <id>"
+        )
+    return (
+        "⚙ SETUP STEP — your team's roles aren't assigned yet.\n"
+        "  run `./ammo roles set` for the interactive interview (Enter accepts the\n"
+        "  proposed model per seat), or pass "
+        "--orchestrator/--critic/--worker/--builder."
+    )
 
 
 def run_start(

@@ -37,8 +37,27 @@ ready — `ammo run --mock|--real "..."`, `ammo status` anytime.
 ```
 
 The config (`ammo.config.yaml` at the AMMO root) holds host, primary model,
-preferred model set, and the default `--optimize` objective — `run`/`plan-team`
-use the configured objective when no flag is given. No secrets.
+preferred model set, the default `--optimize` objective, and the **role
+assignment** — `run`/`plan-team` use the configured objective when no flag is
+given. No secrets.
+
+## Role setup step
+
+Until the four team seats are assigned, every summon appends a **setup step**.
+The summoning host owns the UI, so the step is host-aware:
+
+- **Agent host** (claude-code, codex, …): the summon directs the host to run the
+  role interview — read the options with `ammo roles plan --json`, then ask the
+  user seat by seat (**orchestrator / critic / simple worker / builder**) and
+  persist with `ammo roles set --orchestrator <id> …`. In Claude Code this
+  surfaces as cards.
+- **Terminal**: the step points at `./ammo roles set` (interactive prompts;
+  Enter accepts the proposed model per seat).
+
+Once `roles` exist in the config the step disappears and the ready summary shows
+the assignment (`roles: orchestrator=… critic=… …`). Re-run `ammo roles set`
+any time to change it. The role assignment is *authority* — the assigned model
+wins its seat in team formation.
 
 ## Per-host shims
 
