@@ -52,6 +52,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
     if args.real:
         factory = RealAdapterFactory(root=root, allow_paid=args.allow_paid)
         mode = "real"
+        # paid is auto-blocked without an API key: paid routes are unavailable
+        # (key absent) so --allow-paid can't engage them — say so, don't spend.
+        if args.allow_paid and not any(
+            s.available and s.profile.cost == "paid" for s in factory.statuses
+        ):
+            print("note: --allow-paid had no effect — no paid API key is configured, "
+                  "so paid routes stay blocked (subscription/local only).")
     else:
         factory = lambda model_id: MockAdapter(model_id)  # noqa: E731
         mode = "mock"

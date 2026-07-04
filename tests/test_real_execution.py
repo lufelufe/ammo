@@ -66,6 +66,25 @@ def test_api_provider_has_no_command_so_falls_back():
     assert isinstance(factory("claude_a_opus"), MockAdapter)
 
 
+def test_paid_is_blocked_without_api_key_even_with_allow_paid():
+    """Policy: without an API key, paid routes are auto-blocked. --allow-paid
+    cannot engage them, because a keyless paid provider is never available."""
+    from ammo.providers import select_models
+
+    keyless_api = ProviderStatus(_API, False, "no API key (ANTHROPIC_API_KEY unset)", [])
+    subscription = ProviderStatus(_CLAUDE, True, "authenticated", ["claude_a_opus"])
+
+    # selection never offers a paid route without the key — even allow_paid=True.
+    usable = select_models([keyless_api, subscription], allow_paid=True)
+    assert usable.get("claude_a_opus") == "claude-code"      # subscription, not the paid API
+
+    # a model only the (keyless) paid API could serve resolves to mock, not HTTP.
+    factory = RealAdapterFactory(statuses=[keyless_api], runner=_fake_runner, allow_paid=True)
+    adapter = factory("claude_a_opus")
+    assert isinstance(adapter, MockAdapter)
+    assert factory.resolutions["claude_a_opus"] == ("mock", None)
+
+
 # --- full pipeline (mode=real) ---------------------------------------------
 
 @pytest.fixture(scope="module")
