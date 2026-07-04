@@ -67,6 +67,81 @@ def slot(slot_id: str) -> Optional[dict]:
     return _SLOT_BY_ID.get(slot_id)
 
 
+# provider prefixes → friendly label, for rendering a member id as "provider · model".
+_PROVIDER_LABEL = {
+    "claude_a": "claude-a", "claude_b": "claude-b", "codex": "codex",
+    "qwen": "qwen", "kimi": "kimi", "gpt_oss": "gpt-oss", "local": "local",
+    "fast_worker": "local",
+}
+
+
+def pretty(model_id: str) -> str:
+    """Render a composed member id as "provider · model" (e.g. claude_b_fable ->
+    'claude-b · fable'). Unknown ids are returned unchanged."""
+    if not model_id:
+        return model_id
+    for prefix, label in _PROVIDER_LABEL.items():
+        if model_id == prefix or model_id.startswith(prefix + "_"):
+            model = model_id[len(prefix):].lstrip("_") or label
+            return f"{label} · {model.replace('_', '-')}"
+    return model_id
+
+
+# --- engine catalog (gate 1) -----------------------------------------------
+# An engine is an auth context (a commercial subscription CLI, an API key, or a
+# local runtime). Setup is a funnel: pick engine -> pick its model -> pick role.
+ENGINES = [
+    {"id": "claude-a", "label": "Claude · account A", "profile": "claude-code",
+     "prefix": "claude_a_",
+     "resolve": "log in: run `claude`, then `/login`"},
+    {"id": "claude-b", "label": "Claude · account B", "profile": "claude-code-b",
+     "prefix": "claude_b_",
+     "resolve": "log in account B: `CLAUDE_CONFIG_DIR=~/.claude-b claude`, then `/login`"},
+    {"id": "codex", "label": "Codex", "profile": "codex",
+     "prefix": "codex",
+     "resolve": "log in: `codex login`"},
+    {"id": "local", "label": "Local · Ollama", "profile": "ollama",
+     "prefix": None,
+     "resolve": "install Ollama and pull a model: `ollama pull llama3`"},
+]
+
+
+def _detect_statuses():
+    from ammo.providers import DEFAULT_CATALOG, AvailabilityDetector
+
+    return AvailabilityDetector().detect_all(DEFAULT_CATALOG)
+
+
+def team_engines(root: Optional[Path] = None, *,
+                 graph: Optional[CapabilityGraph] = None,
+                 statuses=None) -> List[dict]:
+    """Gate-1 data: each engine with its readiness and the models it offers.
+
+    An engine that isn't ready still appears (with a resolve hint) so the user
+    can fix it. Models are the enabled graph nodes carried by that engine's
+    account prefix (local models come from the runtime's own report)."""
+    graph = graph or CapabilityGraph.from_registry(root)
+    nodes = graph.enabled()
+    by_id = {n.id: n for n in nodes}
+    statuses = statuses if statuses is not None else _detect_statuses()
+    by_profile = {s.profile.id: s for s in statuses}
+
+    out: List[dict] = []
+    for eng in ENGINES:
+        st = by_profile.get(eng["profile"])
+        ready = bool(st and st.available)
+        if eng["prefix"]:
+            models = [n for n in nodes if n.id.startswith(eng["prefix"])]
+        else:  # local runtime: only what it actually reports
+            models = [by_id[i] for i in (st.models if st else []) if i in by_id]
+        out.append({
+            "id": eng["id"], "label": eng["label"], "ready": ready,
+            "detail": (st.detail if st else "not detected"),
+            "resolve": eng["resolve"], "models": models,
+        })
+    return out
+
+
 def _qualified(node, spec: dict) -> bool:
     """A model is qualified for a slot when it declares the slot's capability or
     any of the slot's internal roles."""

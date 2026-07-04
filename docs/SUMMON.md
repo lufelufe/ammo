@@ -47,12 +47,11 @@ Until the four team seats are assigned, every summon appends a **setup step**.
 The summoning host owns the UI, so the step is host-aware:
 
 - **Agent host** (claude-code, codex, …): the summon directs the host to run the
-  role interview — read the options with `ammo roles plan --json`, then ask the
-  user seat by seat (**orchestrator / critic / simple worker / builder**) and
-  persist with `ammo roles set --orchestrator <id> …`. In Claude Code this
-  surfaces as cards.
-- **Terminal**: the step points at `./ammo roles set` (interactive prompts;
-  Enter accepts the proposed model per seat).
+  role interview as an **engine → model → role** funnel — pick an engine (read
+  readiness with `ammo roles plan --json`; a not-ready engine gets a resolve
+  step), then its model, then the seat it plays — and persist with
+  `ammo roles set --orchestrator <id> …`. In Claude Code this surfaces as cards.
+- **Terminal**: the step points at `./ammo roles set` (numbered gate prompts).
 
 Once `roles` exist in the config the step disappears and the ready summary shows
 the assignment (`roles: orchestrator=… critic=… …`). Re-run `ammo roles set`

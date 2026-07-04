@@ -38,6 +38,85 @@ def _load_roles(root):
     return dict(config.roles) if config else {}
 
 
+def _prompt(msg: str) -> str:
+    """input() that treats end-of-input as 'done' (piped / non-tty friendly)."""
+    try:
+        return input(msg).strip()
+    except EOFError:
+        return "done"
+
+
+def _gate_interview(root) -> dict:
+    """The gate funnel: engine → (readiness) → model → role, member by member.
+
+    Returns the accumulated {slot: model_id} assignment. Loops until the user is
+    done; a not-ready engine drops into a resolve gate instead of proceeding.
+    """
+    engines = roleplan.team_engines(root)
+    assignments = dict(_load_roles(root))
+    print("Build your team — pick an engine, then its model, then the role it "
+          "plays. Repeat for each seat.\n")
+
+    while True:
+        # Gate 1 — engine
+        print("Gate 1 · engine:")
+        for i, e in enumerate(engines, 1):
+            status = "✓ ready" if e["ready"] else "· not ready"
+            extra = (f"{len(e['models'])} model(s)" if e["ready"] and e["models"]
+                     else (e["detail"] if not e["ready"] else "no models yet"))
+            print(f"  {i}) {e['label']:<20} {status:<12} {extra}")
+        filled = sum(1 for s in roleplan.SLOT_IDS if assignments.get(s))
+        ans = _prompt(f"  → engine # (or 'done'; {filled}/4 seats filled): ").lower()
+        if ans in ("done", "q", "quit", ""):
+            break   # empty assignment is handled by the caller
+        if not (ans.isdigit() and 1 <= int(ans) <= len(engines)):
+            print("    (enter a number from the list)\n")
+            continue
+        eng = engines[int(ans) - 1]
+
+        # Readiness gate — the engine must be logged in / prepared first
+        if not eng["ready"]:
+            print(f"\n  ⚠ {eng['label']} isn't ready — {eng['detail']}.")
+            print(f"    fix: {eng['resolve']}")
+            print("    resolve it and re-run, or choose a ready engine.\n")
+            continue
+        if not eng["models"]:
+            print(f"\n  {eng['label']} is ready but has no models available.\n")
+            continue
+
+        # Gate 2 — model within the chosen engine
+        print(f"\nGate 2 · model  ({eng['label']}):")
+        for i, n in enumerate(eng["models"], 1):
+            warm = "/warm" if n.warm_status == "warm" else ""
+            print(f"  {i}) {roleplan.pretty(n.id):<22} [{n.cost_class}/{n.latency_class}{warm}]")
+        ans = _prompt("  → model #: ")
+        if not (ans.isdigit() and 1 <= int(ans) <= len(eng["models"])):
+            print("    (enter a number)\n")
+            continue
+        model = eng["models"][int(ans) - 1]
+
+        # Gate 3 — the role this engine·model plays
+        print(f"\nGate 3 · role for {roleplan.pretty(model.id)}:")
+        for i, s in enumerate(roleplan.SLOTS, 1):
+            held = assignments.get(s["id"])
+            note = f"   (now {roleplan.pretty(held)})" if held else ""
+            print(f"  {i}) {s['label']:<16}{note}")
+        ans = _prompt("  → role #: ")
+        if not (ans.isdigit() and 1 <= int(ans) <= len(roleplan.SLOTS)):
+            print("    (enter a number)\n")
+            continue
+        slot_id = roleplan.SLOTS[int(ans) - 1]["id"]
+        assignments[slot_id] = model.id
+        print(f"\n✓ {roleplan.pretty(model.id)} → {slot_id}\n")
+
+        if all(assignments.get(s) for s in roleplan.SLOT_IDS):
+            if _prompt("All four seats filled. Add/replace another? [y/N]: ").lower() \
+                    not in ("y", "yes"):
+                break
+            print()
+    return assignments
+
+
 def _cmd_roles_show(_args: argparse.Namespace) -> int:
     root = find_ammo_root()
     assignments = _load_roles(root)
@@ -50,12 +129,12 @@ def _cmd_roles_show(_args: argparse.Namespace) -> int:
 
     print("Role assignment (who plays which seat):")
     for row in roleplan.internal_mapping(assignments):
-        model = row["model"] or "(unset)"
+        model = roleplan.pretty(row["model"]) if row["model"] else "(unset)"
         print(f"  {row['label']:<14} {model}")
     print("\nInternal kernel roles (auto — informational):")
     for row in roleplan.internal_mapping(assignments):
         if row["model"]:
-            print(f"  {row['model']:<20} → {', '.join(row['internal_roles'])}")
+            print(f"  {roleplan.pretty(row['model']):<22} → {', '.join(row['internal_roles'])}")
     print(f"  {'(infra)':<20} → {', '.join(roleplan.INFRA_ROLES)} (test harness, auto)")
 
     warnings = roleplan.validate_assignments(assignments, root=root)
@@ -113,31 +192,7 @@ def _cmd_roles_set(args: argparse.Namespace) -> int:
     interactive = not assignments and (getattr(args, "interactive", False)
                                        or sys.stdin.isatty())
     if interactive:
-        usable = _usable_models(getattr(args, "allow_paid", False))
-        plans = roleplan.plan_roles(root, usable_models=usable, current=_load_roles(root))
-        print("Role interview — for each seat type a number (or a model id), "
-              "Enter for the ✓ default, or '-' to skip.\n")
-        for p in plans:
-            print(f"● {p.label} — {p.summary}")
-            default = p.current or p.proposed
-            for i, c in enumerate(p.candidates, 1):
-                mark = "✓" if c["qualified"] else " "
-                tags = f"[{c['cost']}/{c['latency']}{'/warm' if c['warm'] else ''}]"
-                flag = "  ← default" if c["model"] == default else ""
-                cur = "  (current)" if c["model"] == p.current else ""
-                print(f"    {i}) {mark} {c['model']:<20} {tags}{flag}{cur}")
-            answer = input(f"    → {p.label} [{default or 'skip'}]: ").strip()
-            print()
-            if answer == "-":
-                continue
-            choice = default
-            if answer:
-                if answer.isdigit() and 1 <= int(answer) <= len(p.candidates):
-                    choice = p.candidates[int(answer) - 1]["model"]
-                else:
-                    choice = answer
-            if choice:
-                assignments[p.slot] = choice
+        assignments = _gate_interview(root)
 
     if not assignments:
         print("Nothing to set. Provide --orchestrator/--critic/--worker/--builder, "
@@ -148,7 +203,7 @@ def _cmd_roles_set(args: argparse.Namespace) -> int:
     print("✓ Saved role assignment:")
     for row in roleplan.internal_mapping(config.roles):
         if row["model"]:
-            print(f"  {row['label']:<14} {row['model']}")
+            print(f"  {row['label']:<14} {roleplan.pretty(row['model'])}")
     for w in warnings:
         print(f"  note: {w}")
     return 0

@@ -167,7 +167,7 @@ def test_status_shows_role_setup_step_until_assigned(root):
                                  roles={"orchestrator": "claude_b_fable"}))
     out = build_status(root)
     assert "SETUP STEP" not in out
-    assert "roles: orchestrator=claude_b_fable" in out
+    assert "orchestrator" in out and "claude-b · fable" in out   # Format A: provider · model
 
 
 def test_cli_start_and_status(ammo_root, capsys, monkeypatch):
