@@ -24,11 +24,13 @@ wizard, every later summon is a one-screen ready summary.
 
 ```
 $ ammo start                     (first summon)
-[1/4] Host: claude-code — proposing claude_a_opus (via claude-code) as primary
-[2/4] Usable models: claude_a_opus, claude_b_fable, codex_gpt5
-[3/4] Workspace: connecting grants filesystem access — `ammo connect <path>`
-[4/4] Default objective: balanced / performance / cost / speed
+[1/5] Host: claude-code — proposing claude_a_opus (via claude-code) as primary
+[2/5] Usable models: claude_a_opus, claude_b_fable, codex_gpt5
+[3/5] Workspace: connecting grants filesystem access — `ammo connect <path>`
+[4/5] Default objective: balanced / performance / cost / speed
 ✓ Saved ammo.config.yaml (machine-local, git-ignored)
+[5/5] Team roles — engine → model → role gates (interactive terminal only;
+      agent hosts get the setup-step pointer and drive the gates as cards)
 
 $ ammo start                     (every later summon)
 host: claude-code  primary: claude_a_opus via claude-code

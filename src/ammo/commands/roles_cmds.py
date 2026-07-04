@@ -39,20 +39,24 @@ def _load_roles(root):
 
 
 def _prompt(msg: str) -> str:
-    """input() that treats end-of-input as 'done' (piped / non-tty friendly)."""
+    """input() that treats end-of-input as 'done' (piped / non-tty friendly).
+
+    Also handles OSError (e.g. stdin unavailable / captured) so a non-interactive
+    caller that reached the gate loop exits cleanly instead of crashing."""
     try:
         return input(msg).strip()
-    except EOFError:
+    except (EOFError, OSError):
         return "done"
 
 
-def _gate_interview(root) -> dict:
+def _gate_interview(root, *, statuses=None) -> dict:
     """The gate funnel: engine → (readiness) → model → role, member by member.
 
     Returns the accumulated {slot: model_id} assignment. Loops until the user is
     done; a not-ready engine drops into a resolve gate instead of proceeding.
+    ``statuses`` (provider readiness) is reused from the caller when given.
     """
-    engines = roleplan.team_engines(root)
+    engines = roleplan.team_engines(root, statuses=statuses)
     assignments = dict(_load_roles(root))
     print("Build your team — pick an engine, then its model, then the role it "
           "plays. Repeat for each seat.\n")

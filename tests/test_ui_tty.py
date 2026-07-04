@@ -40,17 +40,27 @@ def _spawn(root, *argv, timeout=45):
 def test_first_summon_wizard_interactive(root):
     child = _spawn(root, "start", "--host", "terminal")
     child.expect(r"first summon setup")
-    child.expect(r"\[1/4\] Host: terminal")
+    child.expect(r"\[1/5\] Host: terminal")
     # a usable model was detected on this machine -> primary confirm prompt
     child.expect(r"Use it as the primary model\? \[Y/n\]")
     child.sendline("y")
-    child.expect(r"\[2/4\] Usable models:")
+    child.expect(r"\[2/5\] Usable models:")
     child.expect(r"preferred set\?")
     child.sendline("claude_a_opus")               # narrow the set by typing ids
-    child.expect(r"\[3/4\] Workspace")
-    child.expect(r"\[4/4\] Default objective")
+    child.expect(r"\[3/5\] Workspace")
+    child.expect(r"\[4/5\] Default objective")
     child.sendline("cost")
     child.expect(r"Saved ammo\.config\.yaml")
+    # [5/5] the engine -> model -> role gates open inline
+    child.expect(r"\[5/5\] Team roles")
+    child.expect(r"Gate 1")                       # engine gate
+    child.sendline("1")                           # first ready engine
+    child.expect(r"Gate 2")                       # its models
+    child.sendline("1")                           # first model
+    child.expect(r"Gate 3")                       # role for that engine·model
+    child.sendline("1")                           # orchestrator
+    child.expect(r"Gate 1")                       # loops back = member seated
+    child.sendline("done")
     child.expect(r"ready")
     child.expect(pexpect.EOF)
     child.close()
@@ -59,6 +69,7 @@ def test_first_summon_wizard_interactive(root):
     config = yaml.safe_load((root / "ammo.config.yaml").read_text(encoding="utf-8"))
     assert config["models"] == ["claude_a_opus"]  # the typed answer stuck
     assert config["default_objective"] == "cost"
+    assert config.get("roles", {}).get("orchestrator")   # a member was seated via gates
 
 
 def test_repeat_summon_skips_the_wizard(root):

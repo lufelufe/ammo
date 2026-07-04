@@ -4,8 +4,10 @@ Summon word: **ammo**, identical in every environment. A host shim (AGENTS.md
 instruction, slash command, alias) runs `python -m ammo start --host <id>`;
 plain `ammo start` works in a terminal. Principles:
 
-- Propose, don't interrogate: everything is detected first; the wizard only
-  confirms (max 4 steps).
+- Propose, don't interrogate: everything is detected first; steps 1-4 only
+  confirm. Step 5 (team roles) runs the engine → model → role gates inline on an
+  interactive terminal; a non-interactive/agent summon prints a setup-step
+  pointer instead (the host drives the gates as cards).
 - Already configured → skip setup entirely and show the ready summary.
 - Non-interactive summons configure safe defaults only; steps that GRANT
   PERMISSIONS (connect a workspace, bind models) are never auto-applied — the
@@ -101,18 +103,18 @@ def roles_setup_step(host: Optional[str]) -> str:
     if host and host != "terminal":
         return (
             "⚙ SETUP STEP — your team's roles aren't assigned yet.\n"
-            f"  host ({host}): run the role interview now. Read the choices with\n"
+            f"  host ({host}): run the role interview now as engine → model → role\n"
+            "  gates. Read the engines and their readiness with\n"
             "    ammo roles plan --json\n"
-            "  then ask the user seat by seat — orchestrator / critic / simple\n"
-            "  worker / builder — and save the answers with\n"
+            "  then for each seat ask the user: which engine (a not-ready one gets a\n"
+            "  fix step) → which model → which role, and save with\n"
             "    ammo roles set --orchestrator <id> --critic <id> "
             "--worker <id> --builder <id>"
         )
     return (
         "⚙ SETUP STEP — your team's roles aren't assigned yet.\n"
-        "  run `./ammo roles set` for the interactive interview (Enter accepts the\n"
-        "  proposed model per seat), or pass "
-        "--orchestrator/--critic/--worker/--builder."
+        "  run `./ammo roles set` for the engine → model → role gate interview,\n"
+        "  or pass --orchestrator/--critic/--worker/--builder directly."
     )
 
 
@@ -137,9 +139,9 @@ def run_start(
         return 0
 
     host = detect_host(host_flag)
-    print("AMMO — first summon setup (4 steps; re-run anytime with --reconfigure)")
+    print("AMMO — first summon setup (5 steps; re-run anytime with --reconfigure)")
 
-    # [1/4] host -> primary model
+    # [1/5] host -> primary model
     statuses = _detect_statuses(detector)
     from ammo.providers import select_models
 
@@ -149,7 +151,7 @@ def run_start(
     primary_model = host_models[0] if host_models else (next(iter(usable), None))
     primary_provider = usable.get(primary_model) if primary_model else None
 
-    print(f"[1/4] Host: {host}"
+    print(f"[1/5] Host: {host}"
           + (f" — proposing {primary_model} (via {primary_provider}) as primary"
              if primary_model else " — no usable model detected for this host"))
     if interactive and primary_model:
@@ -159,9 +161,9 @@ def run_start(
             primary_model = custom or None
             primary_provider = usable.get(primary_model) if primary_model else None
 
-    # [2/4] team model set
+    # [2/5] team model set
     model_ids = sorted(usable)
-    print(f"[2/4] Usable models: {', '.join(model_ids) if model_ids else '(none)'}")
+    print(f"[2/5] Usable models: {', '.join(model_ids) if model_ids else '(none)'}")
     chosen = model_ids
     if interactive and model_ids:
         answer = ask("      Use all as the preferred set? [Y/n or comma-separated ids]: ").strip()
@@ -170,19 +172,19 @@ def run_start(
         elif answer and answer.lower() not in {"y", "yes"}:
             chosen = [m.strip() for m in answer.split(",") if m.strip()]
 
-    # [3/4] workspace — grants permissions, so never auto-applied
-    print("[3/4] Workspace: connecting a directory grants filesystem access, so it")
+    # [3/5] workspace — grants permissions, so never auto-applied
+    print("[3/5] Workspace: connecting a directory grants filesystem access, so it")
     print("      stays explicit — use `ammo connect <path>` (asks read-only vs")
     print("      read-write) and `ammo bind <system>` for a per-system team.")
 
-    # [4/4] objective
+    # [4/5] objective
     objective = "balanced"
     if interactive:
-        answer = ask("[4/4] Default objective [balanced/performance/cost/speed] (Enter=balanced): ").strip().lower()
+        answer = ask("[4/5] Default objective [balanced/performance/cost/speed] (Enter=balanced): ").strip().lower()
         if answer in {"performance", "cost", "speed"}:
             objective = answer
     else:
-        print("[4/4] Default objective: balanced (change later with `ammo start --reconfigure`)")
+        print("[4/5] Default objective: balanced (change later with `ammo start --reconfigure`)")
 
     config = AmmoConfig(
         host=host,
@@ -194,5 +196,20 @@ def run_start(
     )
     path = save_config(root, config)
     print(f"✓ Saved {path.name}")
+
+    # [5/5] team roles — the engine → model → role gates. Interactive terminals
+    # run them inline now; non-interactive/agent summons get the setup-step
+    # pointer in the ready summary instead (the host drives the gates as cards).
+    if interactive:
+        print("[5/5] Team roles — assign who plays each seat (engine → model → role):")
+        from ammo.commands.roles_cmds import _gate_interview
+        from ammo.roleplan import apply_roles
+
+        assignments = _gate_interview(root, statuses=statuses)
+        if assignments:
+            apply_roles(root, assignments)
+    else:
+        print("[5/5] Team roles: not assigned — see the setup step below.")
+
     print(build_status(root))
     return 0
