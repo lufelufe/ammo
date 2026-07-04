@@ -78,3 +78,20 @@ def test_flags_bypass_the_gate_interview(root, monkeypatch):
     monkeypatch.setattr(builtins, "input", _boom)
     assert cli.main(["roles", "set", "--orchestrator", "claude_b_fable"]) == 0
     assert load_config(root).roles == {"orchestrator": "claude_b_fable"}
+
+
+def test_roles_set_system_writes_binding_not_global(root):
+    """--system writes a per-workspace team into the pack's binding, not config."""
+    from ammo.roleplan import system_roles
+
+    (root / "systems" / "proj" / ".ammo").mkdir(parents=True)
+    assert cli.main(["roles", "set", "--system", "proj",
+                     "--critic", "claude_a_haiku"]) == 0
+    assert system_roles(root, "proj") == {"critic": "claude_a_haiku"}
+    cfg = load_config(root)
+    assert (cfg.roles if cfg else {}) == {}                 # global untouched
+
+
+def test_roles_set_unknown_system_errors(root):
+    assert cli.main(["roles", "set", "--system", "ghost",
+                     "--critic", "claude_a_haiku"]) == 1

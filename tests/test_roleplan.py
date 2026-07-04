@@ -135,3 +135,43 @@ def test_internal_mapping_shape():
     orch = next(r for r in rows if r["slot"] == "orchestrator")
     assert orch["model"] == "claude_b_fable"
     assert orch["internal_roles"] == ["router", "analyst", "synthesizer"]
+
+
+# --- per-workspace team binding --------------------------------------------
+
+def test_per_system_roles_roundtrip(tmp_path, graph):
+    roles, warnings = roleplan.apply_roles_to_system(
+        tmp_path, "coding", {"critic": "claude_a_haiku"}, graph=graph)
+    assert roles == {"critic": "claude_a_haiku"}
+    assert roleplan.system_roles(tmp_path, "coding") == {"critic": "claude_a_haiku"}
+    assert roleplan.system_roles(tmp_path, "research") == {}   # untouched system
+
+
+def test_per_workspace_overrides_global_for_that_system(tmp_path, graph, analyzer):
+    from ammo.commands.common import _load_role_assignments
+
+    save_config(tmp_path, AmmoConfig(roles={
+        "orchestrator": "claude_b_fable", "critic": "claude_a_opus",
+        "worker": "codex_gpt5", "builder": "codex_gpt5"}))
+    roleplan.apply_roles_to_system(tmp_path, "coding", {"critic": "claude_a_haiku"}, graph=graph)
+
+    coding = analyzer.analyze("이 python repo 버그 고쳐줘")        # candidate system: coding
+    assert coding.candidate_systems[:1] == ["coding"]
+    merged = _load_role_assignments(tmp_path, coding)
+    assert merged["critic"] == "claude_a_haiku"                   # per-workspace override
+    assert merged["orchestrator"] == "claude_b_fable"            # unset seats inherit global
+
+    research = analyzer.analyze("이 논문들 조사해서 근거랑 같이 정리해줘")  # different system
+    assert _load_role_assignments(tmp_path, research)["critic"] == "claude_a_opus"  # global
+
+
+def test_per_workspace_team_wins_the_seat_in_formation(tmp_path, graph, analyzer):
+    from ammo.commands.common import _load_role_assignments
+
+    save_config(tmp_path, AmmoConfig(roles={"critic": "claude_b_fable"}))
+    roleplan.apply_roles_to_system(tmp_path, "coding", {"critic": "claude_a_haiku"}, graph=graph)
+    task = analyzer.analyze("이 Python repo 버그 고치고 테스트 추가해줘")   # high-risk coding
+    assignments = _load_role_assignments(tmp_path, task)
+    plan = TeamFormer(graph, role_assignments=assignments).form(task)
+    seats = {m.role: m.model for m in plan.selected_team}
+    assert seats["critic"] == "claude_a_haiku"                    # workspace team wins

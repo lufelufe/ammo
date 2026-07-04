@@ -58,7 +58,7 @@ def _cmd_plan_team(args: argparse.Namespace) -> int:
     plan = TeamFormer(
         graph, memory=_load_memory_advisor(root, args), binding=_load_binding(root, task),
         objective=_resolve_objective(root, args), primary=_load_primary(root),
-        role_assignments=_load_role_assignments(root),
+        role_assignments=_load_role_assignments(root, task),
         preferences=pack.preferences if pack else None,
         limits=pack.limits if pack else None,
         workflows=pack.workflow_list if pack else None,

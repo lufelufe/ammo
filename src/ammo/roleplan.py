@@ -265,6 +265,37 @@ def apply_roles(root: Path, assignments: Dict[str, str],
     return config, warnings
 
 
+def apply_roles_to_system(root: Path, system_id: str, assignments: Dict[str, str],
+                          *, graph: Optional[CapabilityGraph] = None):
+    """Persist a per-workspace role assignment into the system's binding.yaml.
+
+    These override the global roles for this system only (team formation prefers
+    them when working in that workspace). Returns (roles_map, warnings)."""
+    from ammo.binding import Binding, BindingStore
+
+    clean = {k: v for k, v in assignments.items() if k in SLOT_IDS and v}
+    warnings = validate_assignments(clean, graph=graph, root=root)
+
+    store = BindingStore(root)
+    binding = store.load(system_id) or Binding(system=system_id)
+    merged = dict(binding.roles)
+    merged.update(clean)
+    binding.roles = merged
+    store.save(binding)
+    return merged, warnings
+
+
+def system_roles(root: Path, system_id: str) -> Dict[str, str]:
+    """The per-workspace role assignment for a system, or {} if none."""
+    try:
+        from ammo.binding import BindingStore
+
+        binding = BindingStore(root).load(system_id)
+        return dict(binding.roles) if binding and binding.roles else {}
+    except Exception:
+        return {}
+
+
 def internal_mapping(assignments: Dict[str, str]) -> List[dict]:
     """Informational view: which model covers each internal kernel role, derived
     from the four slots. Slot priority resolves overlaps (e.g. analyst is covered

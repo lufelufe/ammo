@@ -154,6 +154,11 @@ shown as information.
 ./ammo roles            # show the current assignment + auto internal-role map
 ```
 
+**Per-workspace teams.** A connected directory can override specific seats for
+itself — the global roles are the base, a workspace's binding overrides the seats
+it sets: `./ammo roles set --system <id> --critic claude_a_haiku` (inspect with
+`./ammo roles show --system <id>`).
+
 In Claude Code, just say **`ammo`** and the host walks you through the gates as
 cards; in a terminal, `./ammo roles set` runs them as numbered prompts.
 

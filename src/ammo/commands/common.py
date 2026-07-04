@@ -50,12 +50,20 @@ def _load_primary(root):
     return config.primary_model if config else None
 
 
-def _load_role_assignments(root):
-    """User-authored slot->model role assignment (ammo.config.yaml `roles`)."""
+def _load_role_assignments(root, task=None):
+    """Slot->model role assignment for this task: the global ammo.config.yaml
+    `roles` as the base, with any per-workspace binding
+    (systems/<id>/.ammo/binding.yaml `roles`) overriding specific seats when
+    working in that system."""
     from ammo.config import load_config
 
     config = load_config(root)
-    return dict(config.roles) if config else {}
+    roles = dict(config.roles) if config else {}
+    if task is not None and getattr(task, "candidate_systems", None):
+        from ammo.roleplan import system_roles
+
+        roles.update(system_roles(root, task.candidate_systems[0]))
+    return roles
 
 
 def _resolve_objective(root, args) -> str:

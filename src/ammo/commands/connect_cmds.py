@@ -91,6 +91,8 @@ def _workspace_gate(root) -> list:
         system_id = Path(path).name
         print(f"  ✓ connected {src}  ({'read-write' if writable else 'read-only'})")
         _ammoignore_gate(root, system_id, src)
+        print(f"    tip: give this workspace its own team anytime with "
+              f"`ammo roles set --system {system_id}` (else it uses the global roles).\n")
         newly.append(system_id)
 
     if newly:

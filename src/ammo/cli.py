@@ -77,9 +77,13 @@ def build_parser() -> argparse.ArgumentParser:
         "roles",
         help="Assign who plays each seat (orchestrator/critic/worker/builder).",
     )
+    roles_parser.add_argument("--system", metavar="SYSTEM",
+                              help="Show a workspace's per-system team instead of the global one.")
     roles_parser.set_defaults(func=_cmd_roles_show)
     roles_sub = roles_parser.add_subparsers(dest="roles_command", metavar="<command>")
     roles_show = roles_sub.add_parser("show", help="Show the current role assignment.")
+    roles_show.add_argument("--system", metavar="SYSTEM",
+                            help="Show this workspace's per-system team instead of the global one.")
     roles_show.set_defaults(func=_cmd_roles_show)
     roles_plan = roles_sub.add_parser(
         "plan", help="Show the interview: usable models, candidates, proposed defaults.",
@@ -94,6 +98,8 @@ def build_parser() -> argparse.ArgumentParser:
     roles_set.add_argument("--critic", metavar="MODEL", help="Model for the critic seat.")
     roles_set.add_argument("--worker", metavar="MODEL", help="Model for the simple-worker seat.")
     roles_set.add_argument("--builder", metavar="MODEL", help="Model for the builder seat.")
+    roles_set.add_argument("--system", metavar="SYSTEM",
+                           help="Set a per-workspace team for this system (overrides the global roles there).")
     roles_set.add_argument("--interactive", action="store_true",
                            help="Force the numbered interview even without a TTY.")
     roles_set.add_argument("--allow-paid", action="store_true", help="Include paid API models.")

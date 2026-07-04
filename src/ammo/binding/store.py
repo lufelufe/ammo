@@ -22,6 +22,9 @@ class Binding:
     allow_paid: bool = False
     models: List[Dict[str, str]] = field(default_factory=list)  # [{id, provider}]
     team: List[Dict[str, str]] = field(default_factory=list)    # [{role, model}]
+    # per-workspace role assignment (slot -> model), overriding the global one
+    # for this system only. Same slot vocabulary as ammo.config.yaml `roles`.
+    roles: Dict[str, str] = field(default_factory=dict)
 
     @property
     def model_ids(self) -> List[str]:
@@ -39,6 +42,7 @@ class Binding:
             "allow_paid": self.allow_paid,
             "models": self.models,
             "team": self.team,
+            "roles": self.roles,
         }
 
     @classmethod
@@ -48,6 +52,7 @@ class Binding:
             allow_paid=bool(data.get("allow_paid", False)),
             models=list(data.get("models") or []),
             team=list(data.get("team") or []),
+            roles={str(k): str(v) for k, v in (data.get("roles") or {}).items() if v},
         )
 
 

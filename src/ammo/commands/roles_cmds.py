@@ -121,17 +121,30 @@ def _gate_interview(root, *, statuses=None) -> dict:
     return assignments
 
 
-def _cmd_roles_show(_args: argparse.Namespace) -> int:
+def _cmd_roles_show(args: argparse.Namespace) -> int:
     root = find_ammo_root()
-    assignments = _load_roles(root)
-    if not assignments:
-        print("No roles assigned yet.")
-        print("Assign them: `ammo roles set` (interactive) or "
-              "`ammo roles set --orchestrator ID --critic ID --worker ID --builder ID`.")
-        print("In Claude Code, just say \"ammo\" and the host will ask you card by card.")
-        return 0
-
-    print("Role assignment (who plays which seat):")
+    system = getattr(args, "system", None)
+    if system:
+        assignments = roleplan.system_roles(root, system)
+        if not assignments:
+            glob = _load_roles(root)
+            print(f"'{system}' has no per-workspace team — it uses the global roles"
+                  + (":" if glob else " (none set yet)."))
+            for row in roleplan.internal_mapping(glob):
+                if row["model"]:
+                    print(f"  {row['label']:<14} {roleplan.pretty(row['model'])}")
+            print(f"\nSet one: `ammo roles set --system {system}` (or with --orchestrator … flags).")
+            return 0
+        print(f"Per-workspace team for '{system}' (overrides the global roles here):")
+    else:
+        assignments = _load_roles(root)
+        if not assignments:
+            print("No roles assigned yet.")
+            print("Assign them: `ammo roles set` (interactive) or "
+                  "`ammo roles set --orchestrator ID --critic ID --worker ID --builder ID`.")
+            print("In Claude Code, just say \"ammo\" and the host will ask you card by card.")
+            return 0
+        print("Role assignment (who plays which seat):")
     for row in roleplan.internal_mapping(assignments):
         model = roleplan.pretty(row["model"]) if row["model"] else "(unset)"
         print(f"  {row['label']:<14} {model}")
@@ -187,6 +200,12 @@ def _cmd_roles_plan(args: argparse.Namespace) -> int:
 
 def _cmd_roles_set(args: argparse.Namespace) -> int:
     root = find_ammo_root()
+    system = getattr(args, "system", None)
+    if system and not (root / "systems" / system / ".ammo").is_dir():
+        print(f"Error: no system pack '{system}'. Connect it first with "
+              f"`ammo connect <path>` (or `ammo adopt {system}`).", file=sys.stderr)
+        return 1
+
     flags = {
         "orchestrator": args.orchestrator, "critic": args.critic,
         "worker": args.worker, "builder": args.builder,
@@ -203,9 +222,15 @@ def _cmd_roles_set(args: argparse.Namespace) -> int:
               "or run in a terminal for the interactive interview.", file=sys.stderr)
         return 1
 
-    config, warnings = roleplan.apply_roles(root, assignments)
-    print("✓ Saved role assignment:")
-    for row in roleplan.internal_mapping(config.roles):
+    if system:
+        roles, warnings = roleplan.apply_roles_to_system(root, system, assignments)
+        print(f"✓ Saved per-workspace team for '{system}' "
+              f"(overrides the global roles here):")
+    else:
+        config, warnings = roleplan.apply_roles(root, assignments)
+        roles = config.roles
+        print("✓ Saved role assignment:")
+    for row in roleplan.internal_mapping(roles):
         if row["model"]:
             print(f"  {row['label']:<14} {roleplan.pretty(row['model'])}")
     for w in warnings:
