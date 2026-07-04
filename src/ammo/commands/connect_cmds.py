@@ -96,8 +96,53 @@ def _workspace_gate(root) -> Optional[str]:
         print(f"  couldn't connect: {exc}\n")
         return None
     access = "read-write" if writable else "read-only"
-    print(f"  ✓ connected {src}  ({access})\n")
-    return Path(path).name
+    system_id = Path(path).name
+    print(f"  ✓ connected {src}  ({access})")
+    _ammoignore_gate(root, system_id, src)
+    return system_id
+
+
+# always worth protecting; matched by name/glob within the connected directory.
+_ALWAYS_IGNORE = [".env", ".env.*", "*.key", "*.pem", "*.p12", "secrets/", ".git/"]
+_NOISE_CANDIDATES = [
+    "node_modules/", "__pycache__/", ".venv/", "venv/", "dist/", "build/",
+    "target/", ".idea/", ".vscode/", ".mypy_cache/", ".pytest_cache/", ".DS_Store",
+]
+
+
+def _ammoignore_gate(root, system_id: str, source: Path) -> None:
+    """Offer to exclude sensitive/noisy paths within a freshly-connected dir.
+
+    Recommends secrets plus whatever noise dirs actually exist at the top level,
+    and writes the chosen globs to the pack's .ammoignore (the permission gate
+    then blocks those paths). Skipping leaves the commented default in place.
+    """
+    from ammo import pack_contract as pc
+
+    try:
+        present = {p.name for p in source.iterdir()}
+    except OSError:
+        present = set()
+    noise = [c for c in _NOISE_CANDIDATES if c.rstrip("/") in present]
+    recommended = _ALWAYS_IGNORE + noise
+
+    print("  Exclude sensitive / noisy paths here (.ammoignore)?")
+    print(f"    recommended: {', '.join(recommended)}")
+    ans = _prompt("    [Y]es add these / [n]o / or type comma-separated globs: ")
+    low = ans.lower()
+    if low in ("n", "no", "-"):
+        print("    left .ammoignore at its commented default.\n")
+        return
+    patterns = recommended if low in ("", "y", "yes") else \
+        [p.strip() for p in ans.split(",") if p.strip()]
+    if not patterns:
+        print("    nothing to add.\n")
+        return
+    dest = root / "systems" / system_id / pc.IGNORE_FILE
+    header = ("# Paths AMMO ignores within this system (one glob per line).\n"
+              "# Written by the summon workspace step; edit freely.\n")
+    dest.write_text(header + "\n".join(patterns) + "\n", encoding="utf-8")
+    print(f"    ✓ excluding: {', '.join(patterns)}\n")
 
 
 def _cmd_connect(args: argparse.Namespace) -> int:

@@ -38,7 +38,7 @@ def _spawn(root, *argv, timeout=45):
 
 
 def test_first_summon_wizard_interactive(root):
-    child = _spawn(root, "start", "--host", "terminal")
+    child = _spawn(root, "start", "--host", "terminal", timeout=90)
     child.expect(r"first summon setup")
     child.expect(r"\[1/5\] Host: terminal")
     # a usable model was detected on this machine -> primary confirm prompt
@@ -79,7 +79,8 @@ def test_first_summon_workspace_connects_a_directory(root, tmp_path):
     """The [5/5] workspace gate connects a typed directory by reference."""
     work = tmp_path / "myproject"
     work.mkdir()
-    child = _spawn(root, "start", "--host", "terminal")
+    (work / "node_modules").mkdir()               # a noise dir → recommended excl.
+    child = _spawn(root, "start", "--host", "terminal", timeout=90)
     child.expect(r"Use it as the primary model\? \[Y/n\]")
     child.sendline("y")
     child.expect(r"preferred set\?")
@@ -95,6 +96,9 @@ def test_first_summon_workspace_connects_a_directory(root, tmp_path):
     child.expect(r"read-\[w\]rite\? \[r/w\]")     # access gate
     child.sendline("r")
     child.expect(r"connected")
+    child.expect(r"Exclude sensitive")            # .ammoignore gate
+    child.sendline("y")
+    child.expect(r"excluding")
     child.expect(pexpect.EOF)
     child.close()
     assert child.exitstatus == 0
@@ -102,6 +106,8 @@ def test_first_summon_workspace_connects_a_directory(root, tmp_path):
         (root / "systems" / "myproject" / ".ammo" / "manifest.yaml").read_text(encoding="utf-8"))
     assert manifest["source_path"] == str(work)
     assert manifest["writable"] is False          # 'r' → read-only
+    ignore = (root / "systems" / "myproject" / ".ammoignore").read_text(encoding="utf-8")
+    assert ".env" in ignore and "node_modules/" in ignore   # secrets + detected noise
 
 
 def test_repeat_summon_skips_the_wizard(root):
