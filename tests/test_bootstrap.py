@@ -81,7 +81,18 @@ def test_first_summon_configures_safe_defaults(root, capsys):
     # the workspace grant is pointed to, never auto-applied on a non-interactive summon
     assert "ammo connect" in out
     assert config.roles == {}                              # roles not auto-assigned either
+    assert "verify:" in out and "wiring OK" in out         # the mock smoke test ran
     assert not (root / "systems" / "root").exists()
+
+
+def test_smoke_test_verifies_wiring(root):
+    from ammo.bootstrap import smoke_test
+
+    line = smoke_test(root)
+    assert "wiring OK" in line and "confidence" in line
+    # it records nothing — no run dir, no memory db is created by the probe
+    assert not (root / "memory" / "ammo.sqlite").is_file()
+    assert not any((root / "runtime" / "runs").glob("*")) if (root / "runtime" / "runs").is_dir() else True
 
 
 def test_repeat_summon_skips_setup(root, capsys):

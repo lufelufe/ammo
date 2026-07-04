@@ -93,6 +93,46 @@ def build_status(root: Path) -> str:
     return "\n".join(lines)
 
 
+def smoke_test(root: Path) -> str:
+    """A mock dry-run that verifies the wiring end-to-end — roles → team
+    formation → execution → confidence — without recording anything or spending
+    a real model call. Returns a one-line verdict for the setup summary."""
+    try:
+        from ammo.adapters import MockAdapter
+        from ammo.commands.common import (_load_pack_for_task, _load_primary,
+                                          _load_role_assignments)
+        from ammo.config import load_config
+        from ammo.kernel.capability_graph import CapabilityGraph
+        from ammo.kernel.confidence import ConfidenceEngine
+        from ammo.kernel.executor import Runner
+        from ammo.kernel.task_understanding import TaskAnalyzer
+        from ammo.kernel.team_formation import TeamFormer
+        from ammo.roleplan import pretty
+
+        cfg = load_config(root)
+        objective = cfg.default_objective if cfg else "balanced"
+        graph = CapabilityGraph.from_registry(root)
+        # a clearly-coding probe so the multi-seat team (and any role assignment)
+        # is exercised, not just a single generalist.
+        task = TaskAnalyzer().analyze("review this repository's code and suggest one improvement")
+        pack = _load_pack_for_task(root, task)
+        plan = TeamFormer(
+            graph, objective=objective, primary=_load_primary(root),
+            role_assignments=_load_role_assignments(root),
+            preferences=pack.preferences if pack else None,
+            limits=pack.limits if pack else None,
+            workflows=pack.workflow_list if pack else None,
+        ).form(task)
+        result = Runner(lambda m: MockAdapter(m), mode="mock").run(
+            plan, task, system_context=(pack.context or "") if pack else "")
+        report = ConfidenceEngine().assess(task, plan, result.responses, mode="mock")
+        team = ", ".join(pretty(m.model) for m in plan.selected_team) or "(none)"
+        return (f"✓ wiring OK — mock team [{team}] ran end-to-end; "
+                f"confidence {report.confidence_score} ({report.confidence_band}).")
+    except Exception as exc:  # never let a probe failure break the summon
+        return f"⚠ smoke test could not complete: {exc}"
+
+
 def roles_setup_step(host: Optional[str]) -> str:
     """The 'assign your team roles' setup step, shown until roles exist.
 
@@ -216,6 +256,10 @@ def run_start(
     else:
         print("[5/5] Workspace: connecting a directory grants filesystem access, so it\n"
               "      stays explicit — `ammo connect <path>` (asks read-only vs read-write).")
+
+    # verify — a free mock dry-run to confirm the whole chain is wired up.
+    print("verify: running a mock dry-run to confirm the setup works…")
+    print(f"  {smoke_test(root)}")
 
     print(build_status(root))
     return 0
