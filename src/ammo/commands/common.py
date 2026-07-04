@@ -109,7 +109,7 @@ def _assist_invoke(root, args):
 
     factory = RealAdapterFactory(root=root,
                                  allow_paid=bool(getattr(args, "allow_paid", False)))
-    model = ("claude_haiku_fast" if "claude_haiku_fast" in factory.usable
+    model = ("claude_a_haiku" if "claude_a_haiku" in factory.usable
              else next(iter(factory.usable), None))
     if model is None:
         return None

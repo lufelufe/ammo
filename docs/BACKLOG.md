@@ -68,7 +68,7 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   round-trip call. Real connectivity verify comes with real adapters.
 
 ### Efficiency protocol (M17)
-- `codex_builder` pricing is a marked placeholder; update via `ammo pricing set`
+- `codex_gpt5` pricing is a marked placeholder; update via `ammo pricing set`
   or attach the user's price-search module through the `PriceSource` hook.
 
 - `efficiency` report ranks models/teams; a per-task-category "recommended combo

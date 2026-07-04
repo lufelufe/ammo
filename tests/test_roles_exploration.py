@@ -18,12 +18,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def test_workspace_binds_traces_to_role_not_model(tmp_path):
     ws = RoleWorkspace(tmp_path)
-    ws.record("coding", "builder", run_id="r1", model="codex_builder", output="did x",
+    ws.record("coding", "builder", run_id="r1", model="codex_gpt5", output="did x",
               evidence=[{"kind": "diff"}], timestamp="t1")
     ws.record("coding", "builder", run_id="r2", model="kimi_coder_mock", output="did y",
               timestamp="t2")  # SAME role, DIFFERENT model
     journal = ws.journal("coding", "builder")
-    assert [e["model"] for e in journal] == ["codex_builder", "kimi_coder_mock"]
+    assert [e["model"] for e in journal] == ["codex_gpt5", "kimi_coder_mock"]
     assert journal[0]["output"] == "did x"
     assert ws.roles("coding") == ["builder"]
     assert (ws.path("coding", "builder") / "last.md").is_file()

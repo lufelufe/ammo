@@ -27,13 +27,13 @@ def test_economics_aggregates_latency():
 
     book = PricingBook.load(REPO_ROOT)
     responses = [
-        AdapterResponse(role="a", model="claude_a_planner", output="x",
+        AdapterResponse(role="a", model="claude_a_opus", output="x",
                         usage=Usage(10, 5, latency_ms=1200.0)),
-        AdapterResponse(role="b", model="claude_a_planner", output="y",
+        AdapterResponse(role="b", model="claude_a_opus", output="y",
                         usage=Usage(10, 5, latency_ms=800.0)),
     ]
     econ = book.run_economics(responses)
-    row = next(m for m in econ["by_model"] if m["model"] == "claude_a_planner")
+    row = next(m for m in econ["by_model"] if m["model"] == "claude_a_opus")
     assert row["latency_ms"] == 1000.0                 # mean of the two calls
 
 
@@ -41,12 +41,12 @@ def test_store_records_and_averages_latency(tmp_path):
     with MemoryStore.open(tmp_path) as s:
         for lat in (1000.0, 2000.0):
             s.record_run(run_id=f"r{lat}", timestamp="t", domain="research", tags=[],
-                         selected_system="research", model_ids=["claude_a_planner"],
-                         team_signature="researcher:claude_a_planner", confidence_score=0.8,
-                         model_usage={"claude_a_planner": {"tokens": 10, "cost": 0.01,
+                         selected_system="research", model_ids=["claude_a_opus"],
+                         team_signature="researcher:claude_a_opus", confidence_score=0.8,
+                         model_usage={"claude_a_opus": {"tokens": 10, "cost": 0.01,
                                                            "latency_ms": lat}})
         perf = {(r["model_id"], r["task_tag"]): r for r in s.all_model_performance()}
-        assert perf[("claude_a_planner", "research")]["average_latency"] == 1500.0
+        assert perf[("claude_a_opus", "research")]["average_latency"] == 1500.0
 
 
 def test_speed_objective_uses_real_latency_when_present():

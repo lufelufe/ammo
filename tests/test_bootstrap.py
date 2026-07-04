@@ -41,12 +41,12 @@ def root(tmp_path):
 # --- config -------------------------------------------------------------------
 
 def test_config_roundtrip(root):
-    save_config(root, AmmoConfig(host="codex", primary_model="codex_builder",
-                                 models=["codex_builder"], default_objective="cost",
+    save_config(root, AmmoConfig(host="codex", primary_model="codex_gpt5",
+                                 models=["codex_gpt5"], default_objective="cost",
                                  configured_at="2026-07-02T00:00:00+00:00"))
     loaded = load_config(root)
     assert loaded.host == "codex" and loaded.default_objective == "cost"
-    assert loaded.models == ["codex_builder"]
+    assert loaded.models == ["codex_gpt5"]
 
 
 def test_load_config_missing_returns_none(root):
@@ -73,10 +73,10 @@ def test_first_summon_configures_safe_defaults(root, capsys):
     assert code == 0
     config = load_config(root)
     assert config.host == "claude-code"
-    assert config.primary_model == "claude_a_planner"        # host anchors primary
+    assert config.primary_model == "claude_a_opus"        # host anchors primary
     assert config.primary_provider == "claude-code"
-    assert {"claude_a_planner", "claude_b_critic", "claude_haiku_fast",
-            "claude_sonnet_worker", "codex_builder"} <= set(config.models)
+    assert {"claude_a_opus", "claude_b_fable", "claude_a_haiku",
+            "claude_a_sonnet", "codex_gpt5"} <= set(config.models)
     assert config.default_objective == "balanced"
     # permission-granting steps are pointed to, never auto-applied
     assert "ammo connect" in out and "ammo bind" in out
@@ -101,18 +101,18 @@ def test_reconfigure_redoes_setup(root, capsys):
     assert code == 0
     config = load_config(root)
     assert config.host == "codex"
-    assert config.primary_model == "codex_builder"           # new host, new primary
+    assert config.primary_model == "codex_gpt5"           # new host, new primary
 
 
 # --- interactive path ------------------------------------------------------------
 
 def test_interactive_answers_flow(root, capsys):
-    answers = iter(["y", "claude_a_planner,codex_builder", "cost"])
+    answers = iter(["y", "claude_a_opus,codex_gpt5", "cost"])
     code = run_start(root, "claude-code", detector=FakeDetector(),
                      interactive=True, ask=lambda _prompt: next(answers))
     assert code == 0
     config = load_config(root)
-    assert config.models == ["claude_a_planner", "codex_builder"]
+    assert config.models == ["claude_a_opus", "codex_gpt5"]
     assert config.default_objective == "cost"
 
 
@@ -147,27 +147,27 @@ def test_configured_objective_drives_plan_team(ammo_root, capsys):
     cli.main(["plan-team", "이 python repo 버그 고쳐줘", "--no-memory",
               "--optimize", "balanced"])
     flag_team = {m["model"] for m in json.loads(capsys.readouterr().out)["selected_team"]}
-    assert "codex_builder" in flag_team                      # flag overrides config
+    assert "codex_gpt5" in flag_team                      # flag overrides config
 
 
 def test_status_shows_role_setup_step_until_assigned(root):
     # roles unset on an agent host → the summon directs the host to run the
     # card interview.
-    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_a_planner"))
+    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_a_opus"))
     out = build_status(root)
     assert "SETUP STEP" in out
     assert "ammo roles plan --json" in out          # host-directed interview
 
     # a bare terminal is pointed at the interactive command instead.
-    save_config(root, AmmoConfig(host="terminal", primary_model="claude_a_planner"))
+    save_config(root, AmmoConfig(host="terminal", primary_model="claude_a_opus"))
     assert "ammo roles set" in build_status(root)
 
     # once roles exist, the setup step is gone and the assignment is shown.
-    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_b_critic",
-                                 roles={"orchestrator": "claude_b_critic"}))
+    save_config(root, AmmoConfig(host="claude-code", primary_model="claude_b_fable",
+                                 roles={"orchestrator": "claude_b_fable"}))
     out = build_status(root)
     assert "SETUP STEP" not in out
-    assert "roles: orchestrator=claude_b_critic" in out
+    assert "roles: orchestrator=claude_b_fable" in out
 
 
 def test_cli_start_and_status(ammo_root, capsys, monkeypatch):
@@ -178,4 +178,4 @@ def test_cli_start_and_status(ammo_root, capsys, monkeypatch):
     assert cli.main(["start", "--host", "claude-code", "--yes"]) == 0
     capsys.readouterr()
     assert cli.main(["status"]) == 0
-    assert "primary: claude_a_planner" in capsys.readouterr().out
+    assert "primary: claude_a_opus" in capsys.readouterr().out

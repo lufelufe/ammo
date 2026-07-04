@@ -9,7 +9,7 @@
 apiVersion: ammo/v1
 kind: ModelRegistry
 models:
-  - id: claude_a_planner
+  - id: claude_a_opus
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [router, analyst, synthesizer]
@@ -22,7 +22,7 @@ models:
     status: mock
     credentials_env: []
 
-  - id: codex_builder
+  - id: codex_gpt5
     provider: openai
     adapter: ammo.adapters.codex
     roles: [implementer, reviewer]
@@ -35,11 +35,11 @@ models:
     status: mock
     credentials_env: []
 
-  # Account B, now running Claude Fable 5 (claude-fable-5) — Anthropic's most
-  # capable model. Capable across the board, so it carries orchestration roles in
-  # addition to critique. Seated as the orchestrator via ammo.config.yaml `roles`.
-  # (id kept for compatibility; rename to claude_b_fable is a clean follow-up.)
-  - id: claude_b_critic
+  # id = {provider}_{model}: account B running Claude Fable 5 (claude-fable-5),
+  # Anthropic's most capable model. Capable across the board, so it carries broad
+  # roles. The seat it plays is decided by the role assignment (ammo.config.yaml
+  # `roles`), not by this id.
+  - id: claude_b_fable
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [router, analyst, synthesizer, critic, reviewer]
@@ -107,7 +107,7 @@ models:
   # Real workers reached through the SAME authenticated claude CLI via
   # --model — one subscription, several models: the diversity the learning
   # loop needs. Live-verified 2026-07-02 (haiku $0.0009, sonnet $0.0023/call).
-  - id: claude_haiku_fast
+  - id: claude_a_haiku
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [analyst, synthesizer, implementer]
@@ -120,7 +120,7 @@ models:
     status: real
     credentials_env: []
 
-  - id: claude_sonnet_worker
+  - id: claude_a_sonnet
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [analyst, reviewer]

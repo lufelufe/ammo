@@ -36,7 +36,7 @@ def _advisor(model_stats=None, best_teams=None):
 # --- advisor bonus rules ----------------------------------------------------
 
 def test_cold_start_gives_no_bonus():
-    bonus, reasons = _advisor().bonus("codex_builder", "builder", "coding")
+    bonus, reasons = _advisor().bonus("codex_gpt5", "builder", "coding")
     assert bonus == 0.0 and reasons == []
 
 
@@ -68,7 +68,7 @@ def test_synergy_bonus_for_winning_team_member():
 
 # --- team formation flips within guardrails --------------------------------
 
-def _coding_stats(good="kimi_coder_mock", bad="codex_builder"):
+def _coding_stats(good="kimi_coder_mock", bad="codex_gpt5"):
     return {
         (good, "coding"): {"attempts": 3, "successes": 3, "average_confidence": 0.85},
         (bad, "coding"): {"attempts": 3, "successes": 0, "average_confidence": 0.15},
@@ -82,19 +82,19 @@ def test_memory_flips_builder_pick(graph, analyzer):
 
     builder_static = next(m.model for m in static.selected_team if m.role == "builder")
     builder_guided = next(m.model for m in guided.selected_team if m.role == "builder")
-    assert builder_static == "codex_builder"
+    assert builder_static == "codex_gpt5"
     assert builder_guided == "kimi_coder_mock"
-    assert any("kimi_coder_mock over codex_builder" in n for n in guided.notes)
+    assert any("kimi_coder_mock over codex_gpt5" in n for n in guided.notes)
 
 
 def test_memory_never_overrides_capability_guardrail(graph, analyzer):
     """A non-coder with amazing coding memory must NOT take the builder seat."""
     task = analyzer.analyze("이 python repo 버그 고쳐줘")
-    # claude_a_planner has no coding capability / implementer role
-    stats = {("claude_a_planner", "coding"): {"attempts": 9, "successes": 9, "average_confidence": 1.0}}
+    # claude_a_opus has no coding capability / implementer role
+    stats = {("claude_a_opus", "coding"): {"attempts": 9, "successes": 9, "average_confidence": 1.0}}
     guided = TeamFormer(graph, memory=_advisor(stats)).form(task)
     builder = next(m.model for m in guided.selected_team if m.role == "builder")
-    assert builder in {"codex_builder", "kimi_coder_mock"}  # still a real coder
+    assert builder in {"codex_gpt5", "kimi_coder_mock"}  # still a real coder
 
 
 def test_formation_is_deterministic(graph, analyzer):
@@ -157,5 +157,5 @@ def test_cli_plan_team_no_memory_flag(ammo_root, capsys):
     builder_guided = next(m["model"] for m in guided["selected_team"] if m["role"] == "builder")
     builder_static = next(m["model"] for m in static["selected_team"] if m["role"] == "builder")
     assert builder_guided == "kimi_coder_mock"
-    assert builder_static == "codex_builder"
+    assert builder_static == "codex_gpt5"
     assert static["notes"] == []

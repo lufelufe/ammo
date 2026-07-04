@@ -78,7 +78,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     # completely (verified live: a fresh dir reports loggedIn:false while the
     # default stays logged in). Log account B in with:
     #   CLAUDE_CONFIG_DIR=~/.claude-b claude  (then /login)
-    # When B is authenticated, claude_b_critic runs on it (true 2-account
+    # When B is authenticated, claude_b_fable runs on it (true 2-account
     # teams); when it is not, the entry is unavailable and claude_b falls back
     # to the primary account below. Listed FIRST so B wins for its model.
     ProviderProfile(
@@ -96,8 +96,8 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
             "--no-session-persistence",
         ],
         parser="claude_json",
-        models=["claude_b_critic"], cost="included",
-        model_args={"claude_b_critic": ["--model", "claude-fable-5"]},
+        models=["claude_b_fable"], cost="included",
+        model_args={"claude_b_fable": ["--model", "claude-fable-5"]},
     ),
     # Lightweight worker mode MEASURED live 2026-07-02: replacing the full
     # Claude Code session surface (system prompt/MCP/tools/CLAUDE.md) with a
@@ -119,12 +119,12 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
         parser="claude_json",
         # one subscription, several REAL models (--model): the pool diversity
         # the learning loop needs. haiku/sonnet live-verified 2026-07-02.
-        models=["claude_a_planner", "claude_b_critic",
-                "claude_haiku_fast", "claude_sonnet_worker"],
+        models=["claude_a_opus", "claude_b_fable",
+                "claude_a_haiku", "claude_a_sonnet"],
         model_args={
-            "claude_b_critic": ["--model", "claude-fable-5"],
-            "claude_haiku_fast": ["--model", "haiku"],
-            "claude_sonnet_worker": ["--model", "sonnet"],
+            "claude_b_fable": ["--model", "claude-fable-5"],
+            "claude_a_haiku": ["--model", "haiku"],
+            "claude_a_sonnet": ["--model", "sonnet"],
         },
         cost="included",
     ),
@@ -133,7 +133,7 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
         command="codex", auth_check=["codex", "login", "status"],
         invoke=["codex", "exec", "--skip-git-repo-check", "--json"],
         parser="codex_jsonl",
-        models=["codex_builder"], cost="included",
+        models=["codex_gpt5"], cost="included",
     ),
     ProviderProfile(
         "ollama", LOCAL, "Ollama (local)",
@@ -144,24 +144,24 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     ProviderProfile(
         "anthropic-api", API, "Anthropic API",
         env_var="ANTHROPIC_API_KEY",
-        models=["claude_a_planner", "claude_b_critic",
-                "claude_haiku_fast", "claude_sonnet_worker"],
+        models=["claude_a_opus", "claude_b_fable",
+                "claude_a_haiku", "claude_a_sonnet"],
         cost="paid",
         api_url="https://api.anthropic.com/v1/messages",
         api_format="anthropic",
         api_models={
-            "claude_a_planner": "claude-opus-4-8",
-            "claude_b_critic": "claude-fable-5",
-            "claude_haiku_fast": "claude-haiku-4-5",
-            "claude_sonnet_worker": "claude-sonnet-5",
+            "claude_a_opus": "claude-opus-4-8",
+            "claude_b_fable": "claude-fable-5",
+            "claude_a_haiku": "claude-haiku-4-5",
+            "claude_a_sonnet": "claude-sonnet-5",
         },
     ),
     ProviderProfile(
         "openai-api", API, "OpenAI API",
-        env_var="OPENAI_API_KEY", models=["codex_builder"], cost="paid",
+        env_var="OPENAI_API_KEY", models=["codex_gpt5"], cost="paid",
         api_url="https://api.openai.com/v1/chat/completions",
         api_format="openai",
         # vendor model name is editable data — match it to your plan
-        api_models={"codex_builder": "gpt-5"},
+        api_models={"codex_gpt5": "gpt-5"},
     ),
 ]

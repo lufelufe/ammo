@@ -56,12 +56,12 @@ def test_existing_or_best_falls_back_to_memory(root):
     with MemoryStore.open(root) as mem:
         for i in range(3):
             mem.record_run(run_id=f"r{i}", timestamp=f"2026-01-0{i+1}", domain="coding", tags=[],
-                           selected_system="coding", model_ids=["kimi_coder_mock", "claude_b_critic"],
-                           team_signature="builder:kimi_coder_mock+critic:claude_b_critic",
+                           selected_system="coding", model_ids=["kimi_coder_mock", "claude_b_fable"],
+                           team_signature="builder:kimi_coder_mock+critic:claude_b_fable",
                            confidence_score=0.8)
     proposal = existing_or_best(root, "coding")
     assert proposal["source"] == "memory_best"
-    assert proposal["binding"].team_map == {"builder": "kimi_coder_mock", "critic": "claude_b_critic"}
+    assert proposal["binding"].team_map == {"builder": "kimi_coder_mock", "critic": "claude_b_fable"}
 
 
 def test_existing_or_best_none_when_empty(root):
@@ -70,10 +70,10 @@ def test_existing_or_best_none_when_empty(root):
 
 def test_available_choices_from_statuses():
     prof = ProviderProfile("claude-code", "subscription_cli", "Claude Code",
-                           models=["claude_a_planner"], cost="included")
-    statuses = [ProviderStatus(prof, True, "authenticated", ["claude_a_planner"])]
+                           models=["claude_a_opus"], cost="included")
+    statuses = [ProviderStatus(prof, True, "authenticated", ["claude_a_opus"])]
     choices = available_choices(statuses)
-    assert choices == [{"model": "claude_a_planner", "provider": "claude-code",
+    assert choices == [{"model": "claude_a_opus", "provider": "claude-code",
                         "kind": "subscription_cli"}]
 
 
@@ -116,12 +116,12 @@ def test_bound_team_pins_role(graph, analyzer):
 
 def test_binding_restricts_model_set(graph, analyzer):
     task = analyzer.analyze("이 python repo 버그 고쳐줘")
-    # allowed set excludes codex_builder -> builder must come from the bound set
+    # allowed set excludes codex_gpt5 -> builder must come from the bound set
     binding = Binding("coding", models=[{"id": m, "provider": "p"} for m in
-                                        ["kimi_coder_mock", "claude_a_planner", "claude_b_critic"]])
+                                        ["kimi_coder_mock", "claude_a_opus", "claude_b_fable"]])
     plan = TeamFormer(graph, binding=binding).form(task)
     picked = {m.model for m in plan.selected_team if m.role != "test_runner"}
-    assert "codex_builder" not in picked
+    assert "codex_gpt5" not in picked
     assert "kimi_coder_mock" in {m.model for m in plan.selected_team}
 
 
@@ -142,7 +142,7 @@ def ammo_root(root, monkeypatch):
 
 def test_cli_bind_models_then_run_uses_binding(ammo_root, capsys):
     code = cli.main(["bind", "coding", "--models",
-                     "kimi_coder_mock,claude_a_planner,claude_b_critic,local_test_runner"])
+                     "kimi_coder_mock,claude_a_opus,claude_b_fable,local_test_runner"])
     out = capsys.readouterr().out
     assert code == 0 and "Bound 'coding'" in out
     assert (ammo_root / "systems" / "coding" / ".ammo" / "binding.yaml").is_file()

@@ -35,20 +35,20 @@ def test_schema_created(tmp_path):
 
 def test_record_run_populates_all_tables(tmp_path):
     store = MemoryStore(tmp_path / "m.sqlite")
-    _record(store, "r1", "coding", ["codex_builder", "claude_b_critic"], 0.8)
+    _record(store, "r1", "coding", ["codex_gpt5", "claude_b_fable"], 0.8)
     stats = store.stats()
     assert stats["total_runs"] == 1
     assert stats["by_domain"] == {"coding": 1}
-    assert {m["model_id"] for m in stats["models"]} == {"codex_builder", "claude_b_critic"}
+    assert {m["model_id"] for m in stats["models"]} == {"codex_gpt5", "claude_b_fable"}
     assert len(stats["teams"]) == 1
     store.close()
 
 
 def test_running_average_and_success_counters(tmp_path):
     store = MemoryStore(tmp_path / "m.sqlite")
-    _record(store, "r1", "coding", ["codex_builder"], 0.6)
-    _record(store, "r2", "coding", ["codex_builder"], 0.8)
-    perf = next(m for m in store.stats()["models"] if m["model_id"] == "codex_builder")
+    _record(store, "r1", "coding", ["codex_gpt5"], 0.6)
+    _record(store, "r2", "coding", ["codex_gpt5"], 0.8)
+    perf = next(m for m in store.stats()["models"] if m["model_id"] == "codex_gpt5")
     assert perf["attempts"] == 2
     assert perf["successes"] == 2          # both >= 0.5
     assert perf["average_confidence"] == 0.7

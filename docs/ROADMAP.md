@@ -177,7 +177,7 @@ unbuilt.**
 - **Delivery — multi-account Claude + summon accessibility.** Two-plus Claude
   accounts on one Mac work WITHOUT switching macOS users: `CLAUDE_CONFIG_DIR`
   fully separates auth slots (verified live), so the catalog ships a
-  `claude-code-b` provider (env `~/.claude-b`) that owns `claude_b_critic`
+  `claude-code-b` provider (env `~/.claude-b`) that owns `claude_b_fable`
   when logged in and gracefully falls back to the primary account when not —
   true 2-account teams by just logging in (`CLAUDE_CONFIG_DIR=~/.claude-b
   claude` → /login). Providers carry per-provider env (paths, never secrets)

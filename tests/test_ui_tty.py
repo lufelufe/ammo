@@ -46,7 +46,7 @@ def test_first_summon_wizard_interactive(root):
     child.sendline("y")
     child.expect(r"\[2/4\] Usable models:")
     child.expect(r"preferred set\?")
-    child.sendline("claude_a_planner")               # narrow the set by typing ids
+    child.sendline("claude_a_opus")               # narrow the set by typing ids
     child.expect(r"\[3/4\] Workspace")
     child.expect(r"\[4/4\] Default objective")
     child.sendline("cost")
@@ -57,7 +57,7 @@ def test_first_summon_wizard_interactive(root):
     assert child.exitstatus == 0
 
     config = yaml.safe_load((root / "ammo.config.yaml").read_text(encoding="utf-8"))
-    assert config["models"] == ["claude_a_planner"]  # the typed answer stuck
+    assert config["models"] == ["claude_a_opus"]  # the typed answer stuck
     assert config["default_objective"] == "cost"
 
 

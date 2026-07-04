@@ -43,7 +43,7 @@ def test_model_bias_breaks_a_tie_for_qualified_model(graph, analyzer):
     task = analyzer.analyze("이 주제 자료 조사해줘")                 # researcher tie 7:7
     plain = TeamFormer(graph).form(task)
     biased = TeamFormer(graph, preferences={"model_bias": {"qwen_planner_mock": 1.0}}).form(task)
-    assert plain.selected_team[0].model == "claude_a_planner"
+    assert plain.selected_team[0].model == "claude_a_opus"
     assert biased.selected_team[0].model == "qwen_planner_mock"
     assert any("system preference" in n for n in biased.notes)
 
@@ -52,7 +52,7 @@ def test_model_bias_is_clamped_below_capability_match(graph, analyzer):
     # even an absurd bias can't push an unqualified model past a capability fit
     task = analyzer.analyze("이 python repo 버그 고쳐줘")
     plan = TeamFormer(graph, preferences={"model_bias": {"fast_worker_mock": 99}}).form(task)
-    assert plan.selected_team[0].model == "claude_a_planner"
+    assert plan.selected_team[0].model == "claude_a_opus"
 
 
 # --- limits.yaml -> formation ---------------------------------------------------

@@ -34,8 +34,8 @@ def _seed(root):
                          tags=[], selected_system="coding", model_ids=["ghost_model"],
                          team_signature="builder:ghost_model", confidence_score=0.9)
         s.record_run(run_id="legacy1", timestamp="2026-02-01", domain="investment",
-                     tags=[], selected_system="personal", model_ids=["claude_a_planner"],
-                     team_signature="researcher:claude_a_planner", confidence_score=0.7)
+                     tags=[], selected_system="personal", model_ids=["claude_a_opus"],
+                     team_signature="researcher:claude_a_opus", confidence_score=0.7)
         for i in range(4):
             s.record_run(run_id=f"new{i}", timestamp=f"2026-07-0{i+1}", domain="coding",
                          tags=[], selected_system="coding", model_ids=["kimi_coder_mock"],
@@ -93,7 +93,7 @@ def test_apply_consolidates_everything(root):
         # orphan gone
         assert not any(m == "ghost_model" for m, _ in perf)
         # legacy domain tag merged into the system tag
-        assert ("claude_a_planner", "personal") in perf
+        assert ("claude_a_opus", "personal") in perf
         assert not any(t == "investment" for _, t in perf)
         # window kept the 4 recent + 1 legacy run
         assert s.stats()["total_runs"] == 5
@@ -199,19 +199,19 @@ def test_insights_name_the_best_model_for_the_seat(root):
     role_dir.mkdir(parents=True, exist_ok=True)  # tolerate a copied prior-run dir
     with MemoryStore.open(root) as s:
         for i in range(30):
-            model = "codex_builder" if i % 2 else "kimi_coder_mock"
-            conf = 0.9 if model == "codex_builder" else 0.3
+            model = "codex_gpt5" if i % 2 else "kimi_coder_mock"
+            conf = 0.9 if model == "codex_gpt5" else 0.3
             s.record_run(run_id=f"j{i}", timestamp=f"t{i:02d}", domain="coding", tags=[],
                          selected_system="coding", model_ids=[model],
                          team_signature=f"builder:{model}", confidence_score=conf)
     with (role_dir / "journal.jsonl").open("w", encoding="utf-8") as fh:
         for i in range(30):
-            model = "codex_builder" if i % 2 else "kimi_coder_mock"
+            model = "codex_gpt5" if i % 2 else "kimi_coder_mock"
             fh.write(json.dumps({"run_id": f"j{i}", "timestamp": f"t{i:02d}",
                                  "model": model, "output": f"work {i}"}) + "\n")
 
     DreamEngine(root, journal_keep=20).apply()
     insights = (role_dir / "insights.md").read_text(encoding="utf-8")
-    assert "best for this seat so far: codex_builder" in insights
+    assert "best for this seat so far: codex_gpt5" in insights
     assert "avg confidence 0.90" in insights
     assert "kimi_coder_mock: avg confidence 0.30" in insights

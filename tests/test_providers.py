@@ -44,8 +44,8 @@ ANTHROPIC = next(p for p in DEFAULT_CATALOG if p.id == "anthropic-api")
 def test_cli_authenticated_available():
     st = _detector(installed={"claude"}, authed=True).detect(CLAUDE)
     assert st.available and st.detail == "authenticated"
-    assert st.models == ["claude_a_planner", "claude_b_critic",
-                         "claude_haiku_fast", "claude_sonnet_worker"]
+    assert st.models == ["claude_a_opus", "claude_b_fable",
+                         "claude_a_haiku", "claude_a_sonnet"]
 
 
 def test_cli_installed_but_not_authenticated():
@@ -92,14 +92,14 @@ def test_select_prefers_included_over_paid():
     statuses = det.detect_all(DEFAULT_CATALOG)
     usable = select_models(statuses)  # allow_paid=False
     # claude models come from the subscription CLI, not the paid API
-    assert usable["claude_a_planner"] == "claude-code"
+    assert usable["claude_a_opus"] == "claude-code"
 
 
 def test_paid_only_model_excluded_unless_allowed():
     det = _detector(installed=set(), env={"OPENAI_API_KEY": "x"})
     statuses = det.detect_all(DEFAULT_CATALOG)
-    assert "codex_builder" not in select_models(statuses)                       # paid skipped
-    assert select_models(statuses, allow_paid=True)["codex_builder"] == "openai-api"
+    assert "codex_gpt5" not in select_models(statuses)                       # paid skipped
+    assert select_models(statuses, allow_paid=True)["codex_gpt5"] == "openai-api"
 
 
 # --- CommandAdapter ---------------------------------------------------------
@@ -133,8 +133,8 @@ def test_model_args_extend_the_invoke_command():
     from ammo.adapters.resolver import _invoke_command
 
     claude = next(p for p in DEFAULT_CATALOG if p.id == "claude-code")
-    haiku_cmd = _invoke_command(claude, "claude_haiku_fast")
-    default_cmd = _invoke_command(claude, "claude_a_planner")
+    haiku_cmd = _invoke_command(claude, "claude_a_haiku")
+    default_cmd = _invoke_command(claude, "claude_a_opus")
     assert haiku_cmd[-2:] == ["--model", "haiku"]      # per-model CLI mapping
     assert "--model" not in default_cmd                # default seat untouched
 
@@ -161,14 +161,14 @@ def test_account_b_absent_falls_back_to_primary():
     assert by_id["claude-code-b"].available is False       # loggedIn:false caught
     assert by_id["claude-code"].available is True
     usable = select_models(statuses)
-    assert usable["claude_b_critic"] == "claude-code"      # graceful fallback
+    assert usable["claude_b_fable"] == "claude-code"      # graceful fallback
 
 
 def test_account_b_present_owns_its_model():
     statuses = _two_account_detector(b_logged_in=True).detect_all(DEFAULT_CATALOG)
     usable = select_models(statuses)
-    assert usable["claude_b_critic"] == "claude-code-b"    # true 2-account team
-    assert usable["claude_a_planner"] == "claude-code"     # A keeps the rest
+    assert usable["claude_b_fable"] == "claude-code-b"    # true 2-account team
+    assert usable["claude_a_opus"] == "claude-code"     # A keeps the rest
 
 
 def test_adapter_invokes_with_the_account_env(monkeypatch):
@@ -179,8 +179,8 @@ def test_adapter_invokes_with_the_account_env(monkeypatch):
         seen["env"] = env
         return 0, '{"result": "OK", "usage": {"input_tokens": 1, "output_tokens": 1}}'
     monkeypatch.setenv("HOME", "/Users/tester")
-    adapter = CommandAdapter("claude_b_critic", ["claude", "-p"], runner=runner,
+    adapter = CommandAdapter("claude_b_fable", ["claude", "-p"], runner=runner,
                              env={"CLAUDE_CONFIG_DIR": "~/.claude-b"})
-    adapter.execute(AdapterRequest(role="critic", model="claude_b_critic", task_input="x"))
+    adapter.execute(AdapterRequest(role="critic", model="claude_b_fable", task_input="x"))
     assert seen["env"]["CLAUDE_CONFIG_DIR"] == "/Users/tester/.claude-b"  # ~ expanded
     assert "PATH" in seen["env"]                            # os.environ preserved

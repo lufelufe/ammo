@@ -141,7 +141,7 @@ automatically and shown as information.
 ```bash
 ./ammo roles plan     # the interview: usable models, candidates, proposed defaults
 ./ammo roles set --orchestrator claude_b --critic claude_a \
-                 --worker codex_builder --builder codex_builder
+                 --worker codex_gpt5 --builder codex_gpt5
 ./ammo roles         # show the current assignment + auto internal-role map
 ```
 

@@ -17,7 +17,7 @@ ANTHROPIC = next(p for p in DEFAULT_CATALOG if p.id == "anthropic-api")
 OPENAI = next(p for p in DEFAULT_CATALOG if p.id == "openai-api")
 
 
-def _req(model="claude_a_planner"):
+def _req(model="claude_a_opus"):
     return AdapterRequest(role="planner", model=model, task_input="say ok")
 
 
@@ -45,7 +45,7 @@ OPENAI_OK = {
 def test_anthropic_request_shape_and_key_at_call_time(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-123")
     transport = FakeTransport(payload=ANTHROPIC_OK)
-    adapter = HttpAdapter("claude_a_planner", ANTHROPIC, transport=transport)
+    adapter = HttpAdapter("claude_a_opus", ANTHROPIC, transport=transport)
 
     # rule 4: nothing secret on the object before/after the call
     assert "sk-test-123" not in repr(vars(adapter))
@@ -65,8 +65,8 @@ def test_anthropic_request_shape_and_key_at_call_time(monkeypatch):
 def test_openai_format(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-oa-9")
     transport = FakeTransport(payload=OPENAI_OK)
-    adapter = HttpAdapter("codex_builder", OPENAI, transport=transport)
-    response = adapter.execute(_req(model="codex_builder"))
+    adapter = HttpAdapter("codex_gpt5", OPENAI, transport=transport)
+    response = adapter.execute(_req(model="codex_gpt5"))
 
     call = transport.calls[0]
     assert call["headers"]["authorization"] == "Bearer sk-oa-9"
@@ -77,7 +77,7 @@ def test_openai_format(monkeypatch):
 
 def test_api_error_is_a_retryable_failure_marker():
     transport = FakeTransport(status=429, payload={"error": {"message": "rate limited"}})
-    adapter = HttpAdapter("claude_a_planner", ANTHROPIC, transport=transport)
+    adapter = HttpAdapter("claude_a_opus", ANTHROPIC, transport=transport)
     response = adapter.execute(_req())
     assert response.output.startswith("(api error 429")
     assert response.usage is None
@@ -88,7 +88,7 @@ def test_api_error_is_a_retryable_failure_marker():
 
 def test_unparseable_payload_is_reported():
     transport = FakeTransport(status=200, payload="not-json{")
-    adapter = HttpAdapter("claude_a_planner", ANTHROPIC, transport=transport)
+    adapter = HttpAdapter("claude_a_opus", ANTHROPIC, transport=transport)
     assert adapter.execute(_req()).output.startswith("(api error: unparseable")
 
 
@@ -103,17 +103,17 @@ def test_resolver_uses_http_route_when_paid_allowed(monkeypatch):
     transport = FakeTransport(payload=ANTHROPIC_OK)
     factory = RealAdapterFactory(statuses=_api_only_statuses(), allow_paid=True,
                                  transport=transport)
-    adapter = factory("claude_a_planner")
+    adapter = factory("claude_a_opus")
     assert isinstance(adapter, HttpAdapter)
-    assert factory.resolutions["claude_a_planner"] == ("real", "anthropic-api")
+    assert factory.resolutions["claude_a_opus"] == ("real", "anthropic-api")
     assert adapter.execute(_req()).output == "OK from api"
 
 
 def test_resolver_stays_mock_without_allow_paid():
     factory = RealAdapterFactory(statuses=_api_only_statuses(), allow_paid=False)
-    adapter = factory("claude_a_planner")
+    adapter = factory("claude_a_opus")
     assert not isinstance(adapter, HttpAdapter)
-    assert factory.resolutions["claude_a_planner"][0] == "mock"
+    assert factory.resolutions["claude_a_opus"][0] == "mock"
 
 
 def test_no_extra_cost_route_still_wins_over_api(monkeypatch):
@@ -126,5 +126,5 @@ def test_no_extra_cost_route_still_wins_over_api(monkeypatch):
     ]
     factory = RealAdapterFactory(statuses=statuses, allow_paid=True,
                                  runner=lambda c, stdin="": (0, "{}"))
-    factory("claude_a_planner")
-    assert factory.resolutions["claude_a_planner"] == ("real", "claude-code")
+    factory("claude_a_opus")
+    assert factory.resolutions["claude_a_opus"] == ("real", "claude-code")

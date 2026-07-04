@@ -112,7 +112,7 @@ def test_resolver_attaches_parser_from_profile():
     claude = next(p for p in DEFAULT_CATALOG if p.id == "claude-code")
     statuses = [ProviderStatus(claude, True, "authenticated", list(claude.models))]
     factory = RealAdapterFactory(statuses=statuses, runner=lambda c, stdin="": (0, CLAUDE_JSON))
-    adapter = factory("claude_a_planner")
+    adapter = factory("claude_a_opus")
     assert adapter._parser is PARSERS["claude_json"]
     assert "--output-format" in adapter._command
     resp = adapter.execute(_req())

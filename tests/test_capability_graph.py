@@ -20,15 +20,15 @@ from ammo.kernel.task_understanding import TaskAnalyzer
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED_MODELS = {
-    "claude_a_planner",
-    "codex_builder",
-    "claude_b_critic",
+    "claude_a_opus",
+    "codex_gpt5",
+    "claude_b_fable",
     "qwen_planner_mock",
     "kimi_coder_mock",
     "gpt_oss_critic_mock",
     "fast_worker_mock",
-    "claude_haiku_fast",
-    "claude_sonnet_worker",
+    "claude_a_haiku",
+    "claude_a_sonnet",
     "local_test_runner",
 }
 
@@ -79,13 +79,13 @@ def test_all_nodes_have_required_fields(graph):
 
 def test_by_role_and_capability(graph):
     coders = {n.id for n in graph.by_capability("coding")}
-    assert coders == {"codex_builder", "kimi_coder_mock"}
+    assert coders == {"codex_gpt5", "kimi_coder_mock"}
     critics = {n.id for n in graph.by_role("critic")}
-    assert critics == {"claude_b_critic", "gpt_oss_critic_mock"}
+    assert critics == {"claude_b_fable", "gpt_oss_critic_mock"}
 
 
 def test_get_returns_node_or_none(graph):
-    assert graph.get("codex_builder").provider == "openai"
+    assert graph.get("codex_gpt5").provider == "openai"
     assert graph.get("nope") is None
 
 
@@ -114,18 +114,18 @@ def test_task_needs_for_coding(analyzer):
 def test_coding_task_ranks_a_coder_first(graph, analyzer):
     task = analyzer.analyze("이 Python repo 버그 고치고 테스트 추가해줘")
     ranked = score_models(task, graph)
-    assert ranked[0].model_id == "codex_builder"
+    assert ranked[0].model_id == "codex_gpt5"
     assert ranked[1].model_id == "kimi_coder_mock"
 
 
 def test_verify_task_ranks_a_critic_first(graph, analyzer):
     task = analyzer.analyze("투자 리서치 보고서 검증해줘")
     ranked = score_models(task, graph)
-    assert ranked[0].model_id in {"claude_b_critic", "gpt_oss_critic_mock"}
+    assert ranked[0].model_id in {"claude_b_fable", "gpt_oss_critic_mock"}
     top_two = {ranked[0].model_id, ranked[1].model_id}
-    assert top_two == {"claude_b_critic", "gpt_oss_critic_mock"}
+    assert top_two == {"claude_b_fable", "gpt_oss_critic_mock"}
     # a pure coder must not win a verification task
-    assert ranked[0].model_id not in {"codex_builder", "kimi_coder_mock"}
+    assert ranked[0].model_id not in {"codex_gpt5", "kimi_coder_mock"}
 
 
 def test_scoring_is_deterministic_and_sorted(graph, analyzer):
@@ -158,4 +158,4 @@ def test_cli_score_models(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "Ranked models:" in out
-    assert "claude_b_critic" in out
+    assert "claude_b_fable" in out

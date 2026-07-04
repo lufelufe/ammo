@@ -22,11 +22,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 _CLAUDE = ProviderProfile("claude-code", "subscription_cli", "Claude Code",
                           invoke=["claude", "-p"],
-                          models=["claude_a_planner", "claude_b_critic"], cost="included")
+                          models=["claude_a_opus", "claude_b_fable"], cost="included")
 _OLLAMA = ProviderProfile("ollama", "local", "Ollama", invoke=["ollama", "run", "{model}"],
                           cost="included")
 _API = ProviderProfile("anthropic-api", "api", "Anthropic API", env_var="ANTHROPIC_API_KEY",
-                       invoke=None, models=["claude_a_planner"], cost="paid")
+                       invoke=None, models=["claude_a_opus"], cost="paid")
 
 
 def _fake_runner(cmd, stdin=""):
@@ -36,19 +36,19 @@ def _fake_runner(cmd, stdin=""):
 # --- resolution -------------------------------------------------------------
 
 def test_available_model_resolves_to_command_adapter():
-    statuses = [ProviderStatus(_CLAUDE, True, "authenticated", ["claude_a_planner", "claude_b_critic"])]
+    statuses = [ProviderStatus(_CLAUDE, True, "authenticated", ["claude_a_opus", "claude_b_fable"])]
     factory = RealAdapterFactory(statuses=statuses, runner=_fake_runner)
-    adapter = factory("claude_a_planner")
+    adapter = factory("claude_a_opus")
     assert isinstance(adapter, CommandAdapter)
-    assert factory.resolutions["claude_a_planner"] == ("real", "claude-code")
+    assert factory.resolutions["claude_a_opus"] == ("real", "claude-code")
 
 
 def test_unavailable_model_falls_back_to_mock():
-    statuses = [ProviderStatus(_CLAUDE, True, "ok", ["claude_a_planner", "claude_b_critic"])]
+    statuses = [ProviderStatus(_CLAUDE, True, "ok", ["claude_a_opus", "claude_b_fable"])]
     factory = RealAdapterFactory(statuses=statuses, runner=_fake_runner)
-    adapter = factory("codex_builder")  # no provider offers it here
+    adapter = factory("codex_gpt5")  # no provider offers it here
     assert isinstance(adapter, MockAdapter)
-    assert factory.resolutions["codex_builder"] == ("mock", None)
+    assert factory.resolutions["codex_gpt5"] == ("mock", None)
 
 
 def test_local_model_substitutes_placeholder():
@@ -61,9 +61,9 @@ def test_local_model_substitutes_placeholder():
 
 def test_api_provider_has_no_command_so_falls_back():
     # available but cost=paid and no invoke -> not a command route
-    statuses = [ProviderStatus(_API, True, "key set", ["claude_a_planner"])]
+    statuses = [ProviderStatus(_API, True, "key set", ["claude_a_opus"])]
     factory = RealAdapterFactory(statuses=statuses, runner=_fake_runner, allow_paid=True)
-    assert isinstance(factory("claude_a_planner"), MockAdapter)
+    assert isinstance(factory("claude_a_opus"), MockAdapter)
 
 
 # --- full pipeline (mode=real) ---------------------------------------------
@@ -74,7 +74,7 @@ def graph():
 
 
 def test_real_run_marks_mode_and_mixes_real_and_mock(graph):
-    statuses = [ProviderStatus(_CLAUDE, True, "ok", ["claude_a_planner", "claude_b_critic"])]
+    statuses = [ProviderStatus(_CLAUDE, True, "ok", ["claude_a_opus", "claude_b_fable"])]
     factory = RealAdapterFactory(statuses=statuses, runner=_fake_runner)
     task = TaskAnalyzer(systems=[]).analyze("이 python repo 버그 고쳐줘")
     plan = TeamFormer(graph).form(task)

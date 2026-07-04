@@ -41,7 +41,7 @@ def test_response_to_dict_includes_usage():
 
 def test_pricing_book_loads_and_costs():
     book = PricingBook.load(REPO_ROOT)
-    price = book.get("claude_a_planner")
+    price = book.get("claude_a_opus")
     assert price is not None and price.billing == "subscription"
     # 1M in + 1M out at $5/$25 => $30
     assert price.cost(1_000_000, 1_000_000) == pytest.approx(30.0)
@@ -144,15 +144,15 @@ def test_cost_objective_prefers_local_models(graph, analyzer):
     cheap = TeamFormer(graph, objective="cost").form(task)
     balanced_models = {m.model for m in balanced.selected_team}
     cheap_models = {m.model for m in cheap.selected_team}
-    assert "codex_builder" in balanced_models          # balanced keeps standard coder
+    assert "codex_gpt5" in balanced_models          # balanced keeps standard coder
     assert "kimi_coder_mock" in cheap_models           # cost flips to the local coder
-    assert "claude_a_planner" not in cheap_models      # premium planner dropped
+    assert "claude_a_opus" not in cheap_models      # premium planner dropped
 
 
 def test_performance_objective_keeps_premium(graph, analyzer):
     task = analyzer.analyze("이 python repo 버그 고쳐줘")
     perf = TeamFormer(graph, objective="performance").form(task)
-    assert "claude_a_planner" in {m.model for m in perf.selected_team}
+    assert "claude_a_opus" in {m.model for m in perf.selected_team}
 
 
 def test_advisor_cost_objective_uses_recorded_cost():
@@ -205,11 +205,11 @@ def test_cli_efficiency_report(ammo_root, capsys):
     code = cli.main(["efficiency", "--system", "coding"])
     out = capsys.readouterr().out
     assert code == 0
-    assert "Model efficiency" in out and "codex_builder" in out
+    assert "Model efficiency" in out and "codex_gpt5" in out
     assert "Team combinations" in out
 
 
 def test_cli_pricing_show(ammo_root, capsys):
     code = cli.main(["pricing"])
     out = capsys.readouterr().out
-    assert code == 0 and "claude_a_planner" in out and "subscription" in out
+    assert code == 0 and "claude_a_opus" in out and "subscription" in out

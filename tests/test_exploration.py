@@ -77,14 +77,14 @@ def test_nudge_targets_only_the_least_tried(graph, analyzer):
     stats = {
         ("qwen_planner_mock", "research"): {"attempts": 4, "successes": 4,
                                             "average_confidence": 0.9},
-        ("claude_a_planner", "research"): {"attempts": 1, "successes": 0,
+        ("claude_a_opus", "research"): {"attempts": 1, "successes": 0,
                                            "average_confidence": 0.2},
     }
     advisor = MemoryAdvisor(stats, {})
     active, _, _ = advisor.exploration_state("research")
     assert active                                     # n=5 fires
     veteran, _ = advisor.bonus("qwen_planner_mock", "researcher", "research")
-    rookie, why = advisor.bonus("claude_a_planner", "researcher", "research")
+    rookie, why = advisor.bonus("claude_a_opus", "researcher", "research")
     assert rookie > veteran                           # least-tried outbids
     assert any("exploration run" in r for r in why)
 
@@ -100,9 +100,9 @@ def test_per_seat_schedule_from_recorded_signatures(tmp_path):
     with MemoryStore.open(root) as s:
         # 40 runs seat the researcher; the synthesizer seat appears in only 5
         for i in range(40):
-            sig = "researcher:claude_a_planner" + ("+synthesizer:fast_worker_mock" if i < 5 else "")
+            sig = "researcher:claude_a_opus" + ("+synthesizer:fast_worker_mock" if i < 5 else "")
             s.record_run(run_id=f"s{i}", timestamp=f"t{i:02d}", domain="research", tags=[],
-                         selected_system="research", model_ids=["claude_a_planner"],
+                         selected_system="research", model_ids=["claude_a_opus"],
                          team_signature=sig, confidence_score=0.7)
         advisor = MemoryAdvisor.from_store(s)
     _, eps_res, n_res = advisor.exploration_state("research", "researcher")

@@ -24,14 +24,14 @@ wizard, every later summon is a one-screen ready summary.
 
 ```
 $ ammo start                     (first summon)
-[1/4] Host: claude-code — proposing claude_a_planner (via claude-code) as primary
-[2/4] Usable models: claude_a_planner, claude_b_critic, codex_builder
+[1/4] Host: claude-code — proposing claude_a_opus (via claude-code) as primary
+[2/4] Usable models: claude_a_opus, claude_b_fable, codex_gpt5
 [3/4] Workspace: connecting grants filesystem access — `ammo connect <path>`
 [4/4] Default objective: balanced / performance / cost / speed
 ✓ Saved ammo.config.yaml (machine-local, git-ignored)
 
 $ ammo start                     (every later summon)
-host: claude-code  primary: claude_a_planner via claude-code
+host: claude-code  primary: claude_a_opus via claude-code
 models: …  objective: balanced  systems: …  memory: N run(s)
 ready — `ammo run --mock|--real "..."`, `ammo status` anytime.
 ```
