@@ -8,3 +8,11 @@ cases:
       roles: [analyst, synthesizer]   # routed by the pack's 'briefing' workflow
       tools: [web.search, web.fetch]
       confidence_max: medium
+  # scheduling — personal briefing pipeline without web tools
+  - id: personal-schedule-1
+    input: "내일 회의 일정 정리해줘"
+    expect:
+      system: personal
+      roles: [analyst, synthesizer]
+      tools: []
+      confidence_max: medium

@@ -49,7 +49,7 @@ understand → capability graph → form team → (mock) execute → confidence 
 | Execution (mock) | `src/ammo/kernel/executor/` + `src/ammo/adapters/` | `run --mock`, `show-run` |
 | Confidence | `src/ammo/kernel/confidence/` | `run --show-confidence` |
 | Memory + guided formation | `src/ammo/memory/` (`advisor.py`) | `memory stats|runs` |
-| System eval / eval suite | `src/ammo/kernel/evaluation/`, `src/ammo/evalsuite/` | `eval-system(s)`, `eval --mock` |
+| System eval / eval suite | `src/ammo/kernel/evaluation/`, `src/ammo/evalsuite/` | `eval-system(s)`, `eval --mock [--with-memory]`, `eval --learning`, `eval --compare` |
 | Providers / availability | `src/ammo/providers/` | `providers` |
 | Per-system binding | `src/ammo/binding/` | `bind` |
 | Role workspaces | `src/ammo/roles/` | `role-log` |

@@ -46,15 +46,13 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   스케줄" personal-vs-ops). Domain ties resolved by `DOMAIN_PRIORITY` (tunable).
 - `complexity` / `context_size` are rough heuristics (conjunction/length based).
 
-### Eval suite (v0)
-- One case per domain; expand coverage (multiple cases, edge cases, negative
-  cases) so metrics are statistically meaningful.
-- Baseline is static (no memory/binding). To measure *learning*, add a mode that
-  runs eval WITH accumulated memory and compares against the static baseline.
+### Eval suite
+*(23 cases across 6 domains incl. edge/negative; `eval --learning` measures the
+static-vs-memory delta per seat; `eval --compare` charts the report series.)*
 - `confidence_reasonable` only checks the band cap (mock never 'high'); with real
   execution, tighten to expected ranges per case.
-- No trend tracking yet — store/compare `runtime/reports/` over time (e.g.
-  `ammo eval --compare`) to chart improvement.
+- The learning readout justifies swaps from memory's own recorded stats — until
+  user feedback accumulates, "better" still means "better by the proxy".
 
 ### Role dirs / per-system memory / exploration (M16)
 - Role workspaces live under `systems/<sys>/roles/` (gitignored). For a mounted
@@ -76,28 +74,37 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
 - Local models priced 0 → efficiency=inf; consider a compute-cost estimate.
 
 ### Providers & real adapters (Phase 9 / M14 + real exec)
-- **Claude Code per-call overhead is large**: each `claude -p` spins a full
-  session (~70-90k tokens incl. cache reads → ~$0.2-0.3 equivalent per member
-  call). Consider lighter invocation (reduced system surface, `--strict-mcp-config`,
-  session reuse/`--resume`) before scaling real teams.
-- **Real-mode confidence is optimistic**: real workers return no structured
-  Evidence yet, so nothing lowers the score (0.82 "high" on an unverified
-  answer). Feed real evidence (tool results, verification) before trusting
-  real-mode confidence bands.
-- `ollama run {model}` remains unverified (ollama not installed on this machine).
+- **Claude Code per-call overhead — RESOLVED by worker mode, wall-clock
+  remains**: measured live 2026-07-04 (claude 2.1.201): 822 input tokens,
+  $0.0012, ~5.2s per haiku worker call (was ~70-90k tokens / ~$0.2-0.3).
+  `--resume` session reuse was evaluated and REJECTED: sub-cent savings for
+  real plumbing complexity. Consensus variants now fan out in parallel (one
+  call's latency, not N); pipeline members stay serial by nature (context
+  flows member→member) — ~5s × team size is the remaining latency floor.
+- **Real workers still return no structured Evidence of their own** (the
+  engine now caps unverified real runs below 'high', so the band is honest,
+  but richer per-member evidence — citations, tool traces — would let scores
+  EARN high instead of merely being capped).
+- `ollama run {model}` remains unverified — BLOCKED: ollama is not installed
+  here (2026-07-04) and installing it means a multi-GB model pull; verify on
+  first use after the user installs it.
 - **Tool execution — still open** (enforcement, soft sandbox, and macOS
   seatbelt OS-isolation are shipped, see ROADMAP delivery log):
-  - **Linux bwrap route is shaped but UNVERIFIED on a real Linux box** —
-    behavioral tests needed there before trusting it.
+  - **Linux bwrap route: behaviorally VERIFIED 2026-07-04** (bubblewrap
+    0.11.0, Debian stable aarch64, namespace-capable container): outside
+    writes kernel-denied, network/DNS blocked, in-sandbox writes + git work,
+    /tmp fresh. Residual: a smoke on a bare-metal Linux host (unprivileged
+    userns) would close it completely.
   - Seatbelt residuals: Apple marks `sandbox-exec` deprecated (still widely
     used, e.g. by Codex CLI); no CPU/memory limits; unix-domain sockets are
     not blocked (only `network*`).
   - `ammo promote` flattens absolute write paths to basenames (mirrors the
     sandbox write rule) — relative-path fidelity for nested targets relies on
     workers requesting relative paths.
-- **API/HTTP route shipped (offline-tested)** — not yet verified against a
-  live key (none on this machine): first `run --real --allow-paid` with a real
-  ANTHROPIC_API_KEY/OPENAI_API_KEY should be watched. OpenAI vendor model name
+- **API/HTTP route shipped (offline-tested)** — BLOCKED on a live key (none
+  configured as of 2026-07-04; paid stays auto-blocked): the first
+  `run --real --allow-paid` after the user exports ANTHROPIC_API_KEY /
+  OPENAI_API_KEY should be watched. OpenAI vendor model name
   in the profile (`gpt-5`) is editable data — match it to the actual plan.
   Pricing labels are per-model, so a subscription-priced model reached via the
   paid API is still labeled `subscription` in the cost report.
@@ -124,8 +131,10 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
     shipped; epsilon constants are hand-tuned (calibrate with feedback data).
   - **Wholesale team recall** was intentionally NOT done (recall-as-per-slot
     instead). Revisit only if per-slot proves insufficient.
-- "success" is proxied by confidence >= 0.5 (mock). Needs real outcome +
-  `user_feedback` signal to be meaningful.
+- User-feedback ground truth is wired end-to-end (`ammo feedback` verdicts win
+  over the confidence proxy in record/rebuild/best-team), but little feedback
+  data has accumulated yet — the proxy still decides most runs until verdicts
+  pile up.
 - `task_tag` aggregation uses `domain` only, not the full `tags` list. Consider
   per-tag rows for finer model/team performance.
 - Advisor weights (MODEL_WEIGHT/SYNERGY_WEIGHT/MIN_ATTEMPTS/BONUS_CAP) are
@@ -134,8 +143,11 @@ attached; revisit then. Resolved history lives in the ROADMAP delivery log.)*
   (column back-fill exists in `MemoryStore._migrate`).
 
 ### Confidence Engine (Phase 6 v0)
-- Weights are hand-tuned constants; not calibrated against outcomes. Tune once
-  real runs + Memory Feedback (Phase 7) provide ground truth.
+- A learned GLOBAL correction is wired (`ammo calibrate --apply` stores a
+  bounded offset from user verdicts; the engine applies it). Still open:
+  per-TERM weight re-tuning (critic pass +0.12, tests +0.15, …) needs far
+  more judged data than a global offset; revisit when feedback rows reach
+  the hundreds.
 - `limits.yaml` confidence_gate is wired (M19); the pack's `workflows.yaml`
   stage definitions still don't drive routing/escalation (templates are
   hard-coded — see Team Formation).

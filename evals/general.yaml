@@ -15,3 +15,26 @@ cases:
       roles: [fast_worker]
       tools: []
       confidence_max: medium
+  - id: general-negative-emoji-1
+    input: "👍"
+    expect:
+      system: null
+      roles: [fast_worker]
+      tools: []
+      confidence_max: medium
+  - id: general-negative-oneword-1
+    input: "hello"
+    expect:
+      system: null
+      roles: [fast_worker]
+      tools: []
+      confidence_max: medium
+  # multi-intent conjunction — must resolve to ONE coherent pipeline (research),
+  # not a mixed or oversized team
+  - id: general-multi-intent-1
+    input: "자료 조사하고 검증하고 요약해서 보고서 만들어줘"
+    expect:
+      system: research
+      roles: [researcher, skeptic, synthesizer]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

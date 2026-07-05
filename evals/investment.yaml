@@ -13,3 +13,11 @@ cases:
       roles: [analyst, critic, synthesizer]   # routed by 'investment-intel' workflow
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium
+  # crypto market check — same investment-intel workflow as equities
+  - id: investment-market-1
+    input: "비트코인 시장 상황 분석해줘"
+    expect:
+      system: personal
+      roles: [analyst, critic, synthesizer]   # routed by 'investment-intel' workflow
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

@@ -48,6 +48,17 @@ def test_pricing_book_loads_and_costs():
     assert book.get("kimi_coder_mock").cost(1_000_000, 1_000_000) == 0.0  # local
 
 
+def test_pricing_family_entries_price_every_engine_node():
+    """A family entry prices every composed `{engine}_{model}` node identically —
+    the price belongs to the MODEL, not to the account serving it."""
+    book = PricingBook.load(REPO_ROOT)
+    for model in ("opus", "fable", "haiku", "sonnet"):
+        a, b = book.get(f"claude_a_{model}"), book.get(f"claude_b_{model}")
+        assert a is not None and b is not None, f"{model} must be priced for A and B"
+        assert (a.price_per_mtok_in, a.price_per_mtok_out) == (
+            b.price_per_mtok_in, b.price_per_mtok_out)
+
+
 def test_run_economics_aggregates_and_flags_unpriced():
     book = PricingBook({"m1": ModelPrice("m1", "api", 10.0, 20.0)})
     responses = [
@@ -152,7 +163,7 @@ def test_cost_objective_prefers_local_models(graph, analyzer):
 def test_performance_objective_keeps_premium(graph, analyzer):
     task = analyzer.analyze("이 python repo 버그 고쳐줘")
     perf = TeamFormer(graph, objective="performance").form(task)
-    assert "claude_a_opus" in {m.model for m in perf.selected_team}
+    assert {"claude_a_fable", "claude_b_fable"} & {m.model for m in perf.selected_team}
 
 
 def test_advisor_cost_objective_uses_recorded_cost():
@@ -188,7 +199,9 @@ def ammo_root(tmp_path, monkeypatch):
 
 
 def test_cli_run_reports_and_stores_economics(ammo_root, capsys):
-    code = cli.main(["run", "--mock", "이 python repo 버그 고쳐줘"])
+    # --no-escalate: this asserts the PLAIN pipeline (one model per seat);
+    # the high-risk request would otherwise auto-add a consensus alternate.
+    code = cli.main(["run", "--mock", "--no-escalate", "이 python repo 버그 고쳐줘"])
     out = capsys.readouterr().out
     assert code == 0 and "economics:" in out and "tokens" in out
     run_id = next(l.split("run_id: ", 1)[1].strip() for l in out.splitlines() if l.startswith("run_id: "))
@@ -197,6 +210,18 @@ def test_cli_run_reports_and_stores_economics(ammo_root, capsys):
     )
     assert summary["economics"]["total_tokens"] > 0
     assert summary["economics"]["model_count"] == len(summary["team"])
+
+
+def test_escalated_run_prices_the_extra_consensus_member(ammo_root, capsys):
+    # auto-escalation adds a real participating model — economics must count it
+    code = cli.main(["run", "--mock", "이 python repo 버그 고쳐줘"])
+    out = capsys.readouterr().out
+    assert code == 0 and "auto-escalated" in out
+    run_id = next(l.split("run_id: ", 1)[1].strip() for l in out.splitlines() if l.startswith("run_id: "))
+    summary = json.loads(
+        (ammo_root / "runtime" / "runs" / run_id / "run_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["economics"]["model_count"] == len(summary["team"]) + 1
 
 
 def test_cli_efficiency_report(ammo_root, capsys):

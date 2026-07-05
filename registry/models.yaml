@@ -2,14 +2,25 @@
 # the IP. The kernel selects models by CAPABILITY (roles, capabilities, cost,
 # latency, context, warmth) — never by hard-coded name.
 #
-# NO secrets. `credentials_env` lists only variable NAMES (empty here). Every
-# entry below is a MOCK / planned node — no real model is called anywhere yet.
-# Adapter-mechanism details (api_mode, auth_type, ...) live at the adapter layer
-# (Phase 9); see docs/MODEL_ADAPTER_SPEC.md.
+# Two entry shapes:
+#   - FAMILY entry: has `engines: [claude_a, claude_b]` and a family-level `id`
+#     (e.g. `opus`). The loader expands it to one node PER ENGINE
+#     (`claude_a_opus`, `claude_b_opus`, ...) sharing this metadata — every
+#     engine offers ALL the models of its family by construction (a Claude
+#     subscription can run any Claude model via `--model`). Add an account:
+#     add its engine key here, nothing else.
+#   - PLAIN entry: no `engines` field; the `id` is the node id as-is
+#     (local/mock/infra nodes).
+#
+# NO secrets. `credentials_env` lists only variable NAMES (empty here).
+# Adapter-mechanism details (invocation, --model args) live at the adapter
+# layer; see docs/MODEL_ADAPTER_SPEC.md and src/ammo/providers/profile.py.
 apiVersion: ammo/v1
 kind: ModelRegistry
 models:
-  - id: claude_a_opus
+  # --- Claude family: served by BOTH account engines (claude_a, claude_b) ---
+  - id: opus
+    engines: [claude_a, claude_b]
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [router, analyst, synthesizer]
@@ -19,27 +30,14 @@ models:
     latency_class: medium      # fast | medium | slow
     warm_status: warm          # warm | cold
     enabled: true
-    status: mock
+    status: real
     credentials_env: []
 
-  - id: codex_gpt5
-    provider: openai
-    adapter: ammo.adapters.codex
-    roles: [implementer, reviewer]
-    capabilities: [coding]
-    context_window: 128000
-    cost_class: standard
-    latency_class: medium
-    warm_status: cold
-    enabled: true
-    status: mock
-    credentials_env: []
-
-  # id = {provider}_{model}: account B running Claude Fable 5 (claude-fable-5),
-  # Anthropic's most capable model. Capable across the board, so it carries broad
-  # roles. The seat it plays is decided by the role assignment (ammo.config.yaml
-  # `roles`), not by this id.
-  - id: claude_b_fable
+  # Claude Fable 5 (claude-fable-5), Anthropic's most capable model. Capable
+  # across the board, so it carries broad roles. The seat it plays is decided
+  # by the role assignment (ammo.config.yaml `roles`), not by this id.
+  - id: fable
+    engines: [claude_a, claude_b]
     provider: anthropic
     adapter: ammo.adapters.claude_code
     roles: [router, analyst, synthesizer, critic, reviewer]
@@ -49,9 +47,56 @@ models:
     latency_class: medium
     warm_status: warm
     enabled: true
-    status: mock
+    status: real
     credentials_env: []
 
+  # Real workers reached through the SAME authenticated claude CLI via
+  # --model — one subscription, several models: the diversity the learning
+  # loop needs. Live-verified 2026-07-02 (haiku $0.0009, sonnet $0.0023/call).
+  - id: haiku
+    engines: [claude_a, claude_b]
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [analyst, synthesizer, implementer]
+    capabilities: [general, writing, summarization]
+    context_window: 200000
+    cost_class: cheap
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: real
+    credentials_env: []
+
+  - id: sonnet
+    engines: [claude_a, claude_b]
+    provider: anthropic
+    adapter: ammo.adapters.claude_code
+    roles: [analyst, reviewer]
+    capabilities: [analysis, general, writing]
+    context_window: 200000
+    cost_class: standard
+    latency_class: fast
+    warm_status: warm
+    enabled: true
+    status: real
+    credentials_env: []
+
+  # --- Codex family ---
+  - id: gpt5
+    engines: [codex]
+    provider: openai
+    adapter: ammo.adapters.codex
+    roles: [implementer, reviewer]
+    capabilities: [coding]
+    context_window: 128000
+    cost_class: standard
+    latency_class: medium
+    warm_status: cold
+    enabled: true
+    status: real
+    credentials_env: []
+
+  # --- Local / OSS mock nodes (plain entries; no engine expansion) ---
   - id: qwen_planner_mock
     provider: oss
     adapter: ammo.adapters.local
@@ -104,39 +149,10 @@ models:
     status: mock
     credentials_env: []
 
-  # Real workers reached through the SAME authenticated claude CLI via
-  # --model — one subscription, several models: the diversity the learning
-  # loop needs. Live-verified 2026-07-02 (haiku $0.0009, sonnet $0.0023/call).
-  - id: claude_a_haiku
-    provider: anthropic
-    adapter: ammo.adapters.claude_code
-    roles: [analyst, synthesizer, implementer]
-    capabilities: [general, writing, summarization]
-    context_window: 200000
-    cost_class: cheap
-    latency_class: fast
-    warm_status: warm
-    enabled: true
-    status: real
-    credentials_env: []
-
-  - id: claude_a_sonnet
-    provider: anthropic
-    adapter: ammo.adapters.claude_code
-    roles: [analyst, reviewer]
-    capabilities: [analysis, general, writing]
-    context_window: 200000
-    cost_class: standard
-    latency_class: fast
-    warm_status: warm
-    enabled: true
-    status: real
-    credentials_env: []
-
   # Infrastructure runner — a harness, not an LLM. Registered here so the
   # test_runner seat resolves through the same capability scoring as everyone
   # else (its exclusive test_execution capability + role make it the only
-  # qualified candidate); previously a synthetic FIXED_MODELS id.
+  # qualified candidate).
   - id: local_test_runner
     provider: infra
     adapter: ammo.adapters.local

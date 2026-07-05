@@ -71,11 +71,9 @@ def _cmd_feedback(args: argparse.Namespace) -> int:
     return 0
 
 
-_CAL_BANDS = (("very_low", 0.0, 0.25), ("low", 0.25, 0.5),
-              ("medium", 0.5, 0.75), ("high", 0.75, 1.01))
+def _cmd_calibrate(args: argparse.Namespace) -> int:
+    from ammo.kernel.confidence import calibrate
 
-
-def _cmd_calibrate(_args: argparse.Namespace) -> int:
     root = find_ammo_root()
     db = root / "memory" / "ammo.sqlite"
     rows = []
@@ -87,23 +85,39 @@ def _cmd_calibrate(_args: argparse.Namespace) -> int:
               "`ammo feedback <run_id> good|bad`. Calibration needs that ground truth.")
         return 0
 
-    print(f"Calibration — {len(rows)} judged run(s). A well-calibrated band's "
-          "good-rate should sit inside its score range:")
-    for band, lo, hi in _CAL_BANDS:
-        in_band = [r for r in rows if r["confidence_score"] is not None
-                   and lo <= r["confidence_score"] < hi]
-        if not in_band:
-            continue
-        good = sum(1 for r in in_band if str(r["user_feedback"]).startswith("good"))
-        rate = good / len(in_band)
+    result = calibrate(rows)
+    print(f"Calibration — {result.samples} judged run(s). A well-calibrated "
+          "band's good-rate should sit inside its score range:")
+    for stat in result.bands:
         marker = ""
-        if rate < lo:
+        if stat.verdict == "overconfident":
             marker = "  <- OVERCONFIDENT (good-rate below the band)"
-        elif rate >= hi:
+        elif stat.verdict == "underconfident":
             marker = "  <- underconfident (good-rate above the band)"
-        print(f"  {band:9} n={len(in_band):<3} good-rate={rate:.0%}{marker}")
-    if len(rows) < 10:
-        print(f"note: only {len(rows)} sample(s) — collect ~10+ before adjusting weights.")
+        print(f"  {stat.band:9} n={stat.n:<3} good-rate={stat.good_rate:.0%}{marker}")
+
+    if result.suggested_offset is None:
+        print(f"note: only {result.samples} sample(s) — collect ~10+ before "
+              "adjusting weights.")
+        if getattr(args, "apply", False):
+            print("--apply refused: not enough judged runs for a correction.")
+            return 1
+        return 0
+
+    from ammo.config import AmmoConfig, load_config, save_config
+
+    config = load_config(root) or AmmoConfig()
+    print(f"suggested correction: {result.suggested_offset:+.2f} "
+          f"(currently applied: {config.confidence_offset:+.2f})")
+    if not getattr(args, "apply", False):
+        if result.suggested_offset != config.confidence_offset:
+            print("apply it with `ammo calibrate --apply` — future runs' "
+                  "confidence shifts toward your verdicts.")
+        return 0
+    config.confidence_offset = result.suggested_offset
+    save_config(root, config)
+    print(f"applied: confidence_offset={result.suggested_offset:+.2f} "
+          "(ammo.config.yaml; the engine now corrects future scores)")
     return 0
 
 

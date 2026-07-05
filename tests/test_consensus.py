@@ -118,3 +118,100 @@ def test_cli_consensus_flag(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "consensus:" in out and "sampled by 2 models" in out
+    assert "auto-escalated" not in out                 # explicit flag, not risk
+
+
+def test_consensus_variants_run_in_parallel(graph, analyzer):
+    """The lead and its alternates are independent — they must overlap in time
+    (a sequential runner would show zero overlap). Real calls take ~5s each,
+    so N variants must cost one call's latency, not N."""
+    import threading
+    import time
+
+    windows = []
+    lock = threading.Lock()
+
+    class SlowAdapter(MockAdapter):
+        def execute(self, request):
+            start = time.monotonic()
+            if request.role == "researcher":
+                time.sleep(0.15)
+            response = super().execute(request)
+            with lock:
+                windows.append((request.role, start, time.monotonic()))
+            return response
+
+    task = analyzer.analyze("이 주제 자료 조사하고 검증해줘")
+    former = TeamFormer(graph)
+    plan = former.form(task)
+    lead = plan.roles[0]
+    alts = former.alternates(lead, task, exclude={plan.selected_team[0].model}, k=2)
+    assert len(alts) == 2
+    plan.consensus = {"role": lead, "models": alts}
+
+    result = Runner(SlowAdapter).run(plan, task)
+    lead_windows = [(s, e) for role, s, e in windows if role == lead]
+    assert len(lead_windows) == 3                       # lead + 2 alternates
+    overlaps = sum(
+        1 for i, (s1, e1) in enumerate(lead_windows)
+        for s2, _ in lead_windows[i + 1:] if s2 < e1
+    )
+    assert overlaps >= 1, "variants ran strictly sequentially"
+    # parallelism must not change WHAT is produced: order is lead-then-alts
+    lead_rows = [r for r in result.responses if r.role == lead]
+    assert lead_rows[0].model == plan.selected_team[0].model
+    assert [r.model for r in lead_rows[1:]] == alts
+
+
+# --- risk-based auto-escalation ----------------------------------------------
+
+HIGH_RISK_TEXT = "이 Python repo 버그 고치고 테스트 추가해줘"   # high-risk coding
+
+
+@pytest.fixture
+def cli_root(tmp_path, monkeypatch):
+    import os, shutil
+
+    root = tmp_path / "root"
+    root.mkdir()
+    os.symlink(REPO_ROOT / "registry", root / "registry")
+    shutil.copytree(REPO_ROOT / "systems", root / "systems")
+    for name in ("runtime", "memory", "vaults"):
+        (root / name).mkdir()
+    monkeypatch.setenv("AMMO_ROOT", str(root))
+    return root
+
+
+def test_high_risk_auto_escalates_to_consensus(cli_root, capsys):
+    from ammo import cli
+
+    assert cli.main(["run", "--mock", HIGH_RISK_TEXT]) == 0
+    out = capsys.readouterr().out
+    # the kernel raised the measurement strength on its own
+    assert "consensus:" in out and "sampled by 2 models" in out
+    assert "auto-escalated: high risk" in out
+
+
+def test_no_escalate_disables_the_default(cli_root, capsys):
+    from ammo import cli
+
+    assert cli.main(["run", "--mock", "--no-escalate", HIGH_RISK_TEXT]) == 0
+    out = capsys.readouterr().out
+    assert "consensus:" not in out
+
+
+def test_explicit_consensus_wins_over_escalation(cli_root, capsys):
+    from ammo import cli
+
+    assert cli.main(["run", "--mock", "--consensus", "3", HIGH_RISK_TEXT]) == 0
+    out = capsys.readouterr().out
+    assert "sampled by 3 models" in out
+    assert "auto-escalated" not in out
+
+
+def test_low_risk_does_not_escalate(cli_root, capsys):
+    from ammo import cli
+
+    assert cli.main(["run", "--mock", "write a short haiku about tests"]) == 0
+    out = capsys.readouterr().out
+    assert "consensus:" not in out

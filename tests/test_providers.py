@@ -44,8 +44,11 @@ ANTHROPIC = next(p for p in DEFAULT_CATALOG if p.id == "anthropic-api")
 def test_cli_authenticated_available():
     st = _detector(installed={"claude"}, authed=True).detect(CLAUDE)
     assert st.available and st.detail == "authenticated"
-    assert st.models == ["claude_a_opus", "claude_b_fable",
-                         "claude_a_haiku", "claude_a_sonnet"]
+    # One subscription serves the FULL Claude family for BOTH account engines
+    # (A's own nodes + the fallback route for B's nodes).
+    family = {"opus", "fable", "haiku", "sonnet"}
+    expected = {f"claude_a_{m}" for m in family} | {f"claude_b_{m}" for m in family}
+    assert set(st.models) == expected
 
 
 def test_cli_installed_but_not_authenticated():
@@ -134,9 +137,10 @@ def test_model_args_extend_the_invoke_command():
 
     claude = next(p for p in DEFAULT_CATALOG if p.id == "claude-code")
     haiku_cmd = _invoke_command(claude, "claude_a_haiku")
-    default_cmd = _invoke_command(claude, "claude_a_opus")
+    opus_cmd = _invoke_command(claude, "claude_a_opus")
     assert haiku_cmd[-2:] == ["--model", "haiku"]      # per-model CLI mapping
-    assert "--model" not in default_cmd                # default seat untouched
+    # every family node names its model explicitly — no account-default seat
+    assert opus_cmd[-2:] == ["--model", "opus"]
 
 
 # --- second Claude account slot (CLAUDE_CONFIG_DIR) --------------------------------

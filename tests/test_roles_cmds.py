@@ -42,6 +42,18 @@ def _answers(monkeypatch, seq):
     monkeypatch.setattr(builtins, "input", lambda *_a: next(it))
 
 
+def test_every_claude_engine_offers_the_full_family(root):
+    """THE catalog invariant (user directive): an engine exposes ALL the models
+    it can serve — a Claude subscription runs any Claude model via --model, so
+    BOTH account engines must list the whole family, never a per-account subset."""
+    engines = {e["id"]: e for e in roleplan.team_engines(root)}
+    family = {"opus", "fable", "haiku", "sonnet"}
+    for eng, prefix in (("claude-a", "claude_a"), ("claude-b", "claude_b")):
+        offered = {n.id for n in engines[eng]["models"]}
+        assert offered == {f"{prefix}_{m}" for m in family}, (
+            f"{eng} must offer the full Claude family, got {sorted(offered)}")
+
+
 def test_engine_model_role_gates(root, monkeypatch):
     """Pick engine, then a model within it, then the role it plays — per member."""
     engines = {e["id"]: e for e in roleplan.team_engines(root)}

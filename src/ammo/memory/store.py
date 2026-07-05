@@ -77,6 +77,32 @@ def _is_success(score: Optional[float]) -> bool:
     return score is not None and score >= 0.5
 
 
+def _feedback_verdict(feedback: Optional[str]) -> Optional[bool]:
+    """Parse a stored user_feedback value ('good'/'bad', optionally 'good: note')."""
+    if not feedback:
+        return None
+    head = feedback.split(":", 1)[0].strip().lower()
+    if head == "good":
+        return True
+    if head == "bad":
+        return False
+    return None
+
+
+def run_success(confidence_score: Optional[float],
+                user_feedback: Optional[str] = None) -> bool:
+    """Whether a run counts as a success for the learning loop.
+
+    Ground truth wins: an explicit user verdict ('good'/'bad') decides; the
+    confidence proxy (>= 0.5) is only the fallback when no verdict exists.
+    Every aggregate that credits success MUST go through this, or a rebuild
+    would silently erase the user's corrections back to the proxy."""
+    verdict = _feedback_verdict(user_feedback)
+    if verdict is not None:
+        return verdict
+    return _is_success(confidence_score)
+
+
 def _signature_models(signature: str) -> List[str]:
     """Model ids referenced by a 'role:model+role:model' team signature."""
     return [token.split(":", 1)[1] for token in signature.split("+") if ":" in token]
@@ -157,7 +183,7 @@ class MemoryStore:
         """Record one run. ``model_usage`` maps model_id -> {tokens, cost} so the
         improvement loop can learn cost-efficiency per model, not just quality."""
         status = outcome_status or outcome_from_confidence(confidence_score)
-        success = _is_success(confidence_score)
+        success = run_success(confidence_score, user_feedback)
         # Attribute performance to the SYSTEM (directory), falling back to domain.
         # For built-in packs system == domain, so this generalizes without churn.
         tag = selected_system or domain or "general"
@@ -255,7 +281,7 @@ class MemoryStore:
         then average confidence — 'the best combination for this directory'.
         """
         rows = self.conn.execute(
-            "SELECT team_signature, confidence_score FROM runs "
+            "SELECT team_signature, confidence_score, user_feedback FROM runs "
             "WHERE selected_system=? AND team_signature IS NOT NULL", (system_id,)
         ).fetchall()
         agg: Dict[str, Dict[str, float]] = {}
@@ -265,7 +291,7 @@ class MemoryStore:
             score = row["confidence_score"] or 0.0
             bucket["attempts"] += 1
             bucket["sum"] += score
-            if score >= 0.5:
+            if run_success(row["confidence_score"], row["user_feedback"]):
                 bucket["successes"] += 1
         if not agg:
             return None
@@ -396,7 +422,9 @@ class MemoryStore:
             self.conn.execute("DELETE FROM team_synergy")
             for run in runs:
                 score = run.get("confidence_score")
-                success = _is_success(score)
+                # ground truth survives consolidation: a user verdict recorded
+                # on the run outlives any number of aggregate rebuilds
+                success = run_success(score, run.get("user_feedback"))
                 tag = run.get("selected_system") or run.get("domain") or "general"
                 for model_id in run.get("selected_models") or []:
                     if model_id not in known:

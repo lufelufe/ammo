@@ -61,6 +61,46 @@ class ProviderStatus:
         }
 
 
+# --- Claude model family --------------------------------------------------
+# One subscription runs ANY Claude model via `--model`, so EVERY Claude engine
+# (account A, account B, the paid API) serves the FULL family menu — never a
+# per-account subset. Node ids are composed `{engine}_{model}` to match the
+# registry expansion (registry/models.yaml `engines:` entries).
+_CLAUDE_ENGINES = ["claude_a", "claude_b"]
+_CLAUDE_CLI_MODEL = {          # family model -> claude CLI --model value
+    "opus": "opus",
+    "fable": "claude-fable-5",
+    "haiku": "haiku",
+    "sonnet": "sonnet",
+}
+_CLAUDE_API_MODEL = {          # family model -> Anthropic API model name
+    "opus": "claude-opus-4-8",
+    "fable": "claude-fable-5",
+    "haiku": "claude-haiku-4-5",
+    "sonnet": "claude-sonnet-5",
+}
+
+
+def _claude_node_ids(engines=_CLAUDE_ENGINES) -> List[str]:
+    return [f"{engine}_{model}" for engine in engines for model in _CLAUDE_CLI_MODEL]
+
+
+def _claude_model_args(engines=_CLAUDE_ENGINES) -> dict:
+    return {
+        f"{engine}_{model}": ["--model", cli_name]
+        for engine in engines
+        for model, cli_name in _CLAUDE_CLI_MODEL.items()
+    }
+
+
+def _claude_api_models(engines=_CLAUDE_ENGINES) -> dict:
+    return {
+        f"{engine}_{model}": api_name
+        for engine in engines
+        for model, api_name in _CLAUDE_API_MODEL.items()
+    }
+
+
 # Known providers. Included (subscription/local) are listed before paid API so
 # that, for the same model, the no-extra-cost route is preferred.
 DEFAULT_CATALOG: List[ProviderProfile] = [
@@ -96,13 +136,16 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
             "--no-session-persistence",
         ],
         parser="claude_json",
-        models=["claude_b_fable"], cost="included",
-        model_args={"claude_b_fable": ["--model", "claude-fable-5"]},
+        # Account B serves the FULL Claude family (any model via --model).
+        models=_claude_node_ids(["claude_b"]), cost="included",
+        model_args=_claude_model_args(["claude_b"]),
     ),
     # Lightweight worker mode MEASURED live 2026-07-02: replacing the full
     # Claude Code session surface (system prompt/MCP/tools/CLAUDE.md) with a
     # tiny worker prompt cut input tokens 22,803 -> 768 (~30x) and per-call
-    # cost $0.134 -> $0.015 for the same one-line answer.
+    # cost $0.134 -> $0.015 for the same one-line answer. Re-measured
+    # 2026-07-04 (claude 2.1.201, haiku): 822 input tokens, $0.0012, ~5.2s
+    # wall-clock — token overhead is solved; latency is the remaining cost.
     ProviderProfile(
         "claude-code", SUBSCRIPTION_CLI, "Claude Code",
         command="claude", auth_check=["claude", "auth", "status"],
@@ -117,15 +160,12 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
             "--no-session-persistence",
         ],
         parser="claude_json",
-        # one subscription, several REAL models (--model): the pool diversity
-        # the learning loop needs. haiku/sonnet live-verified 2026-07-02.
-        models=["claude_a_opus", "claude_b_fable",
-                "claude_a_haiku", "claude_a_sonnet"],
-        model_args={
-            "claude_b_fable": ["--model", "claude-fable-5"],
-            "claude_a_haiku": ["--model", "haiku"],
-            "claude_a_sonnet": ["--model", "sonnet"],
-        },
+        # One subscription, the WHOLE Claude family via --model (haiku/sonnet
+        # live-verified 2026-07-02). Account A serves its own nodes AND acts
+        # as the fallback route for account-B nodes when B is not logged in
+        # (claude-code-b is listed first, so B wins for its nodes when ready).
+        models=_claude_node_ids(),
+        model_args=_claude_model_args(),
         cost="included",
     ),
     ProviderProfile(
@@ -144,17 +184,11 @@ DEFAULT_CATALOG: List[ProviderProfile] = [
     ProviderProfile(
         "anthropic-api", API, "Anthropic API",
         env_var="ANTHROPIC_API_KEY",
-        models=["claude_a_opus", "claude_b_fable",
-                "claude_a_haiku", "claude_a_sonnet"],
+        models=_claude_node_ids(),
         cost="paid",
         api_url="https://api.anthropic.com/v1/messages",
         api_format="anthropic",
-        api_models={
-            "claude_a_opus": "claude-opus-4-8",
-            "claude_b_fable": "claude-fable-5",
-            "claude_a_haiku": "claude-haiku-4-5",
-            "claude_a_sonnet": "claude-sonnet-5",
-        },
+        api_models=_claude_api_models(),
     ),
     ProviderProfile(
         "openai-api", API, "OpenAI API",

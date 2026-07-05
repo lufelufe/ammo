@@ -44,6 +44,22 @@ def test_cold_start_does_not_explore():
     assert n == 0 and active is False                # nothing known -> pure static
 
 
+def test_schedule_can_be_disabled_for_measurement():
+    """Eval (learning-curve) reads the LEARNED preference — with
+    schedule_exploration=False no epsilon nudge may leak into the bonus."""
+    stats = {("qwen_planner_mock", "research"): {
+        "attempts": 5, "successes": 5, "average_confidence": 0.9,
+        "average_cost": 0.0, "average_tokens": 10}}
+    live = MemoryAdvisor(stats, {})
+    frozen = MemoryAdvisor(stats, {}, schedule_exploration=False)
+    # attempt 5 is a scheduled exploration run for the live advisor...
+    _, live_reasons = live.bonus("claude_a_fable", "researcher", "research")
+    assert any("exploration run" in r for r in live_reasons)
+    # ...but the measuring advisor stays pure exploitation
+    _, frozen_reasons = frozen.bonus("claude_a_fable", "researcher", "research")
+    assert not any("exploration" in r for r in frozen_reasons)
+
+
 # --- dethroning a stuck winner ------------------------------------------------------
 
 @pytest.fixture(scope="module")

@@ -5,25 +5,44 @@
 # `billing: subscription` means an EQUIVALENT VALUE estimate (no extra cash
 # outlay), `billing: local` means compute-only (priced 0 here).
 #
+# A family entry (`engines: [claude_a, claude_b]`) prices every composed node
+# `{engine}_{id}` identically — the price is a property of the MODEL, not of
+# the account serving it (mirrors registry/models.yaml expansion).
+#
 # Prices are USD per 1M tokens. `source: estimate` entries are placeholders —
 # update with `ammo pricing set <model> <in> <out>` or via a PriceSource module
 # (see src/ammo/economics/pricing.py). No secrets here.
 apiVersion: ammo/v1
 kind: PricingBook
 currency: USD
-as_of: "2026-07-02"
+as_of: "2026-07-04"
 models:
-  - id: claude_a_opus
+  - id: opus
+    engines: [claude_a, claude_b]
     billing: subscription
     price_per_mtok_in: 5.00      # Claude Opus 4.8 public API price (equivalent value)
     price_per_mtok_out: 25.00
     source: anthropic-public-pricing
-  - id: claude_b_fable
+  - id: fable
+    engines: [claude_a, claude_b]
     billing: subscription
     price_per_mtok_in: 10.00     # Claude Fable 5 public API price (equivalent value)
     price_per_mtok_out: 50.00
     source: anthropic-public-pricing
-  - id: codex_gpt5
+  - id: haiku
+    engines: [claude_a, claude_b]
+    billing: subscription
+    price_per_mtok_in: 1.00      # Claude Haiku 4.5 public API price
+    price_per_mtok_out: 5.00
+    source: anthropic-public-pricing
+  - id: sonnet
+    engines: [claude_a, claude_b]
+    billing: subscription
+    price_per_mtok_in: 3.00      # Claude Sonnet public API price
+    price_per_mtok_out: 15.00
+    source: anthropic-public-pricing
+  - id: gpt5
+    engines: [codex]
     billing: subscription
     price_per_mtok_in: 2.00      # PLACEHOLDER estimate — update when confirmed
     price_per_mtok_out: 8.00
@@ -53,13 +72,3 @@ models:
     price_per_mtok_in: 0
     price_per_mtok_out: 0
     source: local-compute
-  - id: claude_a_haiku
-    billing: subscription
-    price_per_mtok_in: 1.00      # Claude Haiku 4.5 public API price
-    price_per_mtok_out: 5.00
-    source: anthropic-public-pricing
-  - id: claude_a_sonnet
-    billing: subscription
-    price_per_mtok_in: 3.00      # Claude Sonnet public API price
-    price_per_mtok_out: 15.00
-    source: anthropic-public-pricing

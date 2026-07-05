@@ -116,6 +116,50 @@ def test_missing_evidence_penalized():
     assert any("no evidence" in r for r in report.reasons_negative)
 
 
+# --- real-mode verification cap ----------------------------------------------
+
+def _smooth_real_run():
+    """Full coverage + critic pass + distinct models — but nothing MEASURED.
+
+    This is the honest-finding failure mode from the backlog: a real research
+    run scored 0.82 'high' although no verification ever ran."""
+    task = mk_task(domain="research", risk="low", intent="research")
+    plan = mk_plan(["researcher", "skeptic"])
+    resp = [mk_resp("researcher", [Evidence("file_read", "read docs", ok=True)], model="m1"),
+            mk_resp("skeptic", [Evidence("review", "0 issues", ok=True)], model="m2")]
+    return task, plan, resp
+
+
+def test_real_unverified_run_cannot_reach_high_band():
+    task, plan, resp = _smooth_real_run()
+    report = ENGINE.assess(task, plan, resp, mode="real")
+    assert report.confidence_band != "high"
+    assert any("capped below 'high'" in r for r in report.reasons_negative)
+    assert "measured verification" in report.required_next_action
+
+
+def test_real_run_with_passing_tests_earns_high():
+    task, plan, resp = _smooth_real_run()
+    resp[0].evidence.append(Evidence("test_result", "12 passed", ok=True))
+    report = ENGINE.assess(task, plan, resp, mode="real")
+    assert report.confidence_band == "high"
+    assert not any("capped" in r for r in report.reasons_negative)
+
+
+def test_real_run_with_measured_consensus_earns_high():
+    task, plan, resp = _smooth_real_run()
+    resp[1].evidence.append(Evidence("consensus", "3 variants agree", ok=True))
+    report = ENGINE.assess(task, plan, resp, mode="real")
+    assert report.confidence_band == "high"
+
+
+def test_mock_runs_are_not_double_capped():
+    # mock already carries its own penalty + 'require real execution' action
+    task, plan, resp = _smooth_real_run()
+    report = ENGINE.assess(task, plan, resp, mode="mock")
+    assert not any("capped" in r for r in report.reasons_negative)
+
+
 # --- the differentiator: ignore model self-confidence -----------------------
 
 def test_score_ignores_model_self_confidence():

@@ -108,17 +108,59 @@ def test_eval_with_memory_changes_decisions():
     from ammo.memory import MemoryAdvisor
 
     # research lead seat is a static tie — strong memory for qwen decides it
+    # schedule_exploration=False: measurement reads the LEARNED preference,
+    # not the live formation's epsilon schedule.
     stats = {("qwen_planner_mock", "research"): {
         "attempts": 5, "successes": 5, "average_confidence": 0.9,
         "average_cost": 0.0, "average_tokens": 10}}
-    advisor = MemoryAdvisor(stats, {})
+    advisor = MemoryAdvisor(stats, {}, schedule_exploration=False)
     case = EvalCase(id="x", input="이 주제 자료 조사하고 근거 검증해줘",
                     expect={"system": "research"})
     static = EvalSuite(root=REPO_ROOT).run_case(case)
     learned = EvalSuite(root=REPO_ROOT, memory=advisor).run_case(case)
     assert static.observed["system"] == learned.observed["system"] == "research"
-    # the learning mode is actually consulted (decision may differ from baseline)
+    # same roles, but the lead MODEL follows the recorded success history —
+    # visible because observed stores the role:model team
     assert learned.observed["roles"] == static.observed["roles"]
+    assert "researcher:qwen_planner_mock" in learned.observed["team"]
+    assert "researcher:qwen_planner_mock" not in static.observed["team"]
+
+
+def _seed_research_memory(root, model_id="qwen_planner_mock", n=5):
+    from ammo.memory import MemoryStore
+
+    with MemoryStore.open(root) as store:
+        for i in range(n):
+            store.record_run(
+                run_id=f"seed{i}", timestamp=f"2026-07-0{i + 1}",
+                domain="research", tags=[], selected_system="research",
+                model_ids=[model_id],
+                team_signature=f"researcher:{model_id}",
+                confidence_score=0.9)
+
+
+def test_cli_eval_learning_measures_the_delta(ammo_root, capsys):
+    """The learning curve, directly: memory-proven qwen takes the research lead
+    from the static winner, and the readout names the seat, the swap, and the
+    recorded performance justifying it."""
+    _seed_research_memory(ammo_root)
+    assert cli.main(["eval", "--learning"]) == 0
+    out = capsys.readouterr().out
+    delta_line = next(l for l in out.splitlines() if l.startswith("learning delta:"))
+    assert not delta_line.startswith("learning delta: 0/")
+    assert "researcher): claude_a_fable -> qwen_planner_mock" in out
+    assert "5/5 success in research" in out
+    reports = list((ammo_root / "runtime" / "reports").glob("learning-*.json"))
+    assert reports
+    data = json.loads(reports[0].read_text(encoding="utf-8"))
+    assert data["mode"] == "learning" and data["changed"]
+    # learning reports must NOT pollute the eval-*.json baseline series
+    assert not list((ammo_root / "runtime" / "reports").glob("eval-*.json"))
+
+
+def test_cli_eval_learning_without_memory(ammo_root, capsys):
+    assert cli.main(["eval", "--learning"]) == 1
+    assert "No run memory yet" in capsys.readouterr().out
 
 
 def test_cli_eval_compare_shows_trend(tmp_path, monkeypatch, capsys):
@@ -136,6 +178,7 @@ def test_cli_eval_compare_shows_trend(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("AMMO_ROOT", str(root))
     assert cli.main(["eval", "--compare"]) == 0
     out = capsys.readouterr().out
+    assert "eval history (2 reports):" in out          # the series = the curve
     assert "eval trend" in out and "9/11 -> 11/11 (+2)" in out
     assert "fixed: c1" in out
 

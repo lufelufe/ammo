@@ -34,6 +34,12 @@ def _band(score: float) -> str:
 
 
 class ConfidenceEngine:
+    def __init__(self, calibration_offset: float = 0.0):
+        # learned correction from `ammo calibrate --apply` (user verdicts vs
+        # scores). Bounded at the source (calibration.OFFSET_CAP); clamped
+        # here too so a hand-edited config can't inject a wild swing.
+        self._offset = max(-0.15, min(0.15, float(calibration_offset or 0.0)))
+
     def assess(
         self,
         task: TaskVector,
@@ -190,6 +196,42 @@ class ConfidenceEngine:
             score -= 0.08
             neg.append("mock adapter only; no real execution")
 
+        # 9b. learned calibration: the user's verdicts said scores run
+        # systematically high/low — shift toward ground truth. Applied BEFORE
+        # the verification cap so a positive correction can never lift an
+        # unverified real run into 'high'.
+        if self._offset:
+            score += self._offset
+            note = (f"calibration correction {self._offset:+.2f} "
+                    "(learned from user verdicts)")
+            (pos if self._offset > 0 else neg).append(note)
+
+        # 10. verification cap (real mode): a critic's pass and model agreement
+        # are still model JUDGMENT. Without at least one MEASURED verification
+        # signal — passing tests, measured consensus, a successful
+        # side-effecting tool execution, declared success evidence, or an
+        # objection resolved through adversarial debate — a real run cannot
+        # claim the 'high' band, however smooth it looked.
+        capped_unverified = False
+        if mode == "real":
+            declared_present = any(
+                any(ev.kind == kind and ev.ok for ev in all_evidence)
+                for kind in declared
+            )
+            verified = (
+                tests_passed
+                or any(ev.kind == "consensus" and ev.ok for ev in all_evidence)
+                or any(ev.kind in {"fs_write", "shell"} and ev.ok
+                       for ev in all_evidence)
+                or declared_present
+                or (had_challenge and final_reviews and final_reviews[-1].ok)
+            )
+            if not verified and score >= 0.75:
+                score = 0.74
+                capped_unverified = True
+                neg.append("no measured verification (tests/consensus/tools) "
+                           "— capped below 'high'")
+
         score = round(min(1.0, max(0.0, score)), 2)
         return ConfidenceReport(
             confidence_score=score,
@@ -199,11 +241,12 @@ class ConfidenceEngine:
             required_next_action=self._next_action(
                 mode, open_objections, risk, score,
                 tool_issues=len(tool_denials) + len(tool_failures),
+                capped_unverified=capped_unverified,
             ),
         )
 
     def _next_action(self, mode: str, objections: List[str], risk: str, score: float,
-                     tool_issues: int = 0) -> str:
+                     tool_issues: int = 0, capped_unverified: bool = False) -> str:
         if mode == "mock":
             return "require real execution before applying changes"
         if objections:
@@ -211,6 +254,9 @@ class ConfidenceEngine:
         if tool_issues:
             return (f"resolve {tool_issues} tool denial(s)/failure(s) — grant the "
                     "permission, fix the tool call, or re-plan without it")
+        if capped_unverified:
+            return ("add measured verification (run tests, --consensus N, or "
+                    "--execute-tools) to earn 'high' confidence")
         if risk == "high" and score < 0.75:
             return "add an independent critic and re-run before applying"
         if score < 0.5:

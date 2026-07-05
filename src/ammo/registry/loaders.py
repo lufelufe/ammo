@@ -81,12 +81,49 @@ def load_registry(root: Path, filename: str) -> List[Dict[str, Any]]:
     return entries
 
 
+def expand_model_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Expand family model entries into per-engine nodes.
+
+    A model entry may declare ``engines: [claude_a, claude_b]`` with a
+    family-level ``id`` (e.g. ``opus``): every engine that can serve the model
+    gets its own node ``{engine}_{id}`` sharing the family metadata. This is
+    what makes the catalog complete by construction — an engine offers ALL the
+    models of its family, never a hand-picked per-account subset. Entries
+    without ``engines`` are plain nodes and pass through unchanged.
+    """
+    expanded: List[Dict[str, Any]] = []
+    for entry in entries:
+        engines = entry.get("engines")
+        if not engines:
+            expanded.append(entry)
+            continue
+        if not isinstance(engines, list) or not all(isinstance(e, str) for e in engines):
+            raise ValidationError(
+                f"models.yaml: entry '{entry['id']}' has a non-list 'engines' field"
+            )
+        for engine in engines:
+            node = dict(entry)
+            del node["engines"]
+            node["engine"] = engine
+            node["model"] = entry["id"]
+            node["id"] = f"{engine}_{entry['id']}"
+            expanded.append(node)
+    seen: Set[str] = set()
+    for node in expanded:
+        if node["id"] in seen:
+            raise ValidationError(
+                f"models.yaml: duplicate model id '{node['id']}' after engine expansion"
+            )
+        seen.add(node["id"])
+    return expanded
+
+
 def load_systems(root: Path) -> List[Dict[str, Any]]:
     return load_registry(root, "systems.yaml")
 
 
 def load_models(root: Path) -> List[Dict[str, Any]]:
-    return load_registry(root, "models.yaml")
+    return expand_model_entries(load_registry(root, "models.yaml"))
 
 
 def load_tools(root: Path) -> List[Dict[str, Any]]:
@@ -103,5 +140,7 @@ def enabled_systems(root: Path) -> List[Dict[str, Any]]:
 
 
 def registry_ids(root: Path, filename: str) -> Set[str]:
-    """The set of ``id`` values declared in a registry file."""
+    """The set of ``id`` values declared in a registry file (models: expanded)."""
+    if filename == "models.yaml":
+        return {entry["id"] for entry in load_models(root)}
     return {entry["id"] for entry in load_registry(root, filename)}

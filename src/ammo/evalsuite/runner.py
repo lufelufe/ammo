@@ -121,7 +121,11 @@ class EvalSuite:
         }
         observed = {
             "system": plan.selected_system,
+            "domain": task.domain,
             "roles": plan.roles,
+            # role:model pairs — memory-guided formation changes MODELS, not
+            # roles, so the learning curve is only visible if models are stored
+            "team": [f"{m.role}:{m.model}" for m in plan.selected_team],
             "tools": plan.required_tools,
             "confidence_band": band,
             "confidence_score": report.confidence_score,

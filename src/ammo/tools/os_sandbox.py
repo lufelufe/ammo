@@ -59,8 +59,13 @@ def wrap_command(cmd: List[str], workdir: Path,
     if isolation == BWRAP:
         # bubblewrap: read-only root, writable sandbox dir, fresh /dev and
         # /tmp, and an unshared network namespace (= network denied).
-        # NOTE: shaped from bubblewrap docs; not yet verified on a real Linux
-        # machine (this repo develops on macOS) — see docs/BACKLOG.md.
+        # VERIFIED behaviorally 2026-07-04 (bubblewrap 0.11.0, Debian stable
+        # aarch64 in a namespace-capable container): outside writes are
+        # kernel-denied ("Read-only file system", incl. /etc), network + DNS
+        # fail under --unshare-net, /tmp is a fresh tmpfs, and writes + `git
+        # init/add` inside the sandbox dir work (the --bind of the workdir
+        # deliberately comes AFTER --tmpfs /tmp, so a workdir under /tmp stays
+        # writable — bwrap applies mounts in argument order).
         path = str(Path(workdir).resolve())
         return ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev",
                 "--tmpfs", "/tmp", "--bind", path, path,

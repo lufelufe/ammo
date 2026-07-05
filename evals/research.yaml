@@ -13,3 +13,19 @@ cases:
       roles: [researcher, skeptic, synthesizer]
       tools: [web.search, web.fetch, doc.read]
       confidence_max: medium
+  # a simple lookup still routes through the research pipeline (skeptic keeps
+  # verification in the loop even for easy questions)
+  - id: research-simple-1
+    input: "파이썬 GIL이 뭔지 조사해줘"
+    expect:
+      system: research
+      roles: [researcher, skeptic, synthesizer]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium
+  - id: research-compare-english-1
+    input: "compare rust and go for a cli tool and cite sources"
+    expect:
+      system: research
+      roles: [researcher, skeptic, synthesizer]
+      tools: [web.search, web.fetch, doc.read]
+      confidence_max: medium

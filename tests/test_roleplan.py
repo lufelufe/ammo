@@ -51,15 +51,17 @@ def test_plan_offers_all_usable_and_marks_qualified(graph):
 
     orch = plans["orchestrator"]
     by_id = {c["model"]: c for c in orch.candidates}
-    # planning/analyst-capable models are qualified for the orchestrator seat;
-    # claude_b runs Fable 5 and is fully capable, so both A and B qualify.
-    assert orch.proposed in {"claude_a_opus", "claude_b_fable"}
-    assert by_id["claude_a_opus"]["qualified"] is True
-    assert by_id["claude_b_fable"]["qualified"] is True
+    # planning-capable premium claude nodes qualify for the orchestrator seat;
+    # every engine carries the full family, so A and B twins all qualify.
+    premium_leads = {f"claude_{acct}_{m}" for acct in ("a", "b")
+                     for m in ("opus", "fable")}
+    assert orch.proposed in premium_leads
+    for model_id in premium_leads:
+        assert by_id[model_id]["qualified"] is True
     # a pure coder is still offered for the seat (assignable), just not qualified
     assert by_id["codex_gpt5"]["qualified"] is False
 
-    assert plans["critic"].proposed == "claude_b_fable"
+    assert plans["critic"].proposed in {"claude_a_fable", "claude_b_fable"}
     assert plans["builder"].proposed == "codex_gpt5"
 
 
@@ -115,7 +117,7 @@ def test_no_assignment_keeps_capability_defaults(analyzer, graph):
     task = analyzer.analyze("이 Python repo 버그 고치고 테스트 추가해줘")
     plan = TeamFormer(graph, role_assignments={}).form(task)
     seats = {m.role: m.model for m in plan.selected_team}
-    assert seats["planner"] == "claude_a_opus"
+    assert seats["planner"] == "claude_a_fable"
     assert seats["critic"] == "claude_b_fable"
 
 

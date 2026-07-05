@@ -39,8 +39,17 @@ def _cmd_run(args: argparse.Namespace) -> int:
     )
     plan = former.form(task)
 
-    # P2: consensus sampling — the lead seat answered by N independent models
+    # P2: consensus sampling — the lead seat answered by N independent models.
+    # Risk-based auto-escalation: a HIGH-RISK task gets measured verification
+    # by default — the kernel raises the MEASUREMENT strength on its own
+    # (never a permission like --execute-tools; those stay explicit). An
+    # explicit --consensus wins; --no-escalate turns it off.
     n_consensus = int(getattr(args, "consensus", 0) or 0)
+    auto_escalated = False
+    if (n_consensus < 2 and task.risk == "high"
+            and not getattr(args, "no_escalate", False)):
+        n_consensus = 2
+        auto_escalated = True
     if n_consensus >= 2 and plan.selected_team:
         lead_role = plan.roles[0]
         lead_model = plan.selected_team[0].model
@@ -48,6 +57,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
                                  k=n_consensus - 1)
         if alts:
             plan.consensus = {"role": lead_role, "models": alts}
+            if auto_escalated:
+                plan.notes.append(
+                    "auto-escalation: high-risk task -> consensus sampling on "
+                    "the lead seat (disable with --no-escalate)")
 
     if args.real:
         factory = RealAdapterFactory(root=root, allow_paid=args.allow_paid)
@@ -130,7 +143,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 if seat is not None:
                     seat.evidence.append(test_ev)
 
-        report = ConfidenceEngine().assess(
+        # learned calibration (`ammo calibrate --apply`) corrects this
+        # machine's scores toward the user's verdicts; eval stays uncalibrated
+        # by design (a deterministic baseline comparable across machines)
+        from ammo.config import load_config
+
+        config = load_config(root)
+        report = ConfidenceEngine(
+            calibration_offset=config.confidence_offset if config else 0.0,
+        ).assess(
             task, current_plan, result.responses, mode=result.mode,
             verification=pack.verification if pack else None,
         )
@@ -242,9 +263,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"grounding: read {len(grounding.files_read)} file(s)"
               + (" (truncated to budget)" if grounding.truncated else ""))
     if plan.consensus:
+        escalated = " [auto-escalated: high risk]" if auto_escalated else ""
         print(f"consensus: {plan.consensus['role']} sampled by "
               f"{1 + len(plan.consensus['models'])} models "
-              f"({', '.join(plan.consensus['models'])} as alternates)")
+              f"({', '.join(plan.consensus['models'])} as alternates){escalated}")
     if plan.debate:
         print(f"debate: {plan.debate['proposer']} ⟷ {plan.debate['challenger']} "
               f"({plan.debate.get('rounds', 1)} round(s))")

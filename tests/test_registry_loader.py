@@ -15,6 +15,7 @@ from ammo.registry import (
     SystemPackLoader,
     ValidationError,
     enabled_systems,
+    load_models,
     load_registry,
     load_roles,
     registry_ids,
@@ -125,6 +126,59 @@ def test_load_registry_missing_file(tmp_path):
 def test_enabled_systems_reads_flag(tmp_path):
     root = _make_root(tmp_path)
     assert [s["id"] for s in enabled_systems(root)] == ["alpha"]
+
+
+# --- family model entries (engine expansion) ---------------------------------
+
+_FAMILY_MODELS = (
+    "apiVersion: ammo/v1\nkind: ModelRegistry\nmodels:\n"
+    "  - id: opus\n    engines: [claude_a, claude_b]\n    provider: anthropic\n"
+    "    adapter: a\n    roles: [analyst]\n    capabilities: [analysis]\n"
+    "    context_window: 1000\n"
+    "  - id: solo_mock\n    provider: oss\n    adapter: a\n    roles: [analyst]\n"
+    "    capabilities: [analysis]\n    context_window: 1000\n"
+)
+
+
+def test_family_entry_expands_one_node_per_engine(tmp_path):
+    root = _make_root(tmp_path)
+    (root / "registry" / "models.yaml").write_text(_FAMILY_MODELS, encoding="utf-8")
+    entries = load_models(root)
+    by_id = {e["id"]: e for e in entries}
+    # every engine gets the FULL family — composed ids, shared metadata
+    assert set(by_id) == {"claude_a_opus", "claude_b_opus", "solo_mock"}
+    assert by_id["claude_a_opus"]["engine"] == "claude_a"
+    assert by_id["claude_a_opus"]["model"] == "opus"
+    assert by_id["claude_b_opus"]["capabilities"] == ["analysis"]
+    assert "engines" not in by_id["claude_a_opus"]
+    # plain entries pass through untouched
+    assert "engine" not in by_id["solo_mock"]
+    # registry_ids sees the expanded ids (pack cross-reference validation)
+    assert registry_ids(root, "models.yaml") == set(by_id)
+
+
+def test_duplicate_id_after_expansion_raises(tmp_path):
+    root = _make_root(tmp_path)
+    (root / "registry" / "models.yaml").write_text(
+        "apiVersion: ammo/v1\nkind: ModelRegistry\nmodels:\n"
+        "  - id: opus\n    engines: [claude_a]\n    provider: anthropic\n"
+        "  - id: claude_a_opus\n    provider: anthropic\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValidationError) as exc:
+        load_models(root)
+    assert "duplicate model id" in str(exc.value)
+
+
+def test_non_list_engines_raises(tmp_path):
+    root = _make_root(tmp_path)
+    (root / "registry" / "models.yaml").write_text(
+        "apiVersion: ammo/v1\nkind: ModelRegistry\nmodels:\n"
+        "  - id: opus\n    engines: claude_a\n    provider: anthropic\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValidationError):
+        load_models(root)
 
 
 # --- SystemPackLoader: happy path ------------------------------------------

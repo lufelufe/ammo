@@ -53,6 +53,7 @@ class MemoryAdvisor:
         model_stats: Dict[Tuple[str, str], Dict[str, Any]],
         best_teams: Dict[str, Dict[str, Any]],
         explore: float = 0.0,
+        schedule_exploration: bool = True,
     ):
         # model_stats keyed by (model_id, task_tag); best_teams keyed by task_tag
         self._model_stats = model_stats
@@ -60,10 +61,15 @@ class MemoryAdvisor:
         # exploration: a small nudge to under-tried qualified models so a stuck
         # winner can be dethroned. Deterministic (based on attempt counts).
         self._explore = max(0.0, explore)
+        # the annealed epsilon SCHEDULE (always-on for live formation). Turn it
+        # off for measurement (eval): a learning-curve readout must reflect the
+        # learned preference, not a scheduled exploration nudge.
+        self._schedule_exploration = schedule_exploration
         self._seat_counts = {}   # (tag, role) -> attempts; per-seat schedule
 
     @classmethod
-    def from_store(cls, store, explore: float = 0.0) -> "MemoryAdvisor":
+    def from_store(cls, store, explore: float = 0.0,
+                   schedule_exploration: bool = True) -> "MemoryAdvisor":
         model_stats = {
             (r["model_id"], r["task_tag"]): r for r in store.all_model_performance()
         }
@@ -75,7 +81,8 @@ class MemoryAdvisor:
                 _success_rate(current), current["average_confidence"]
             ):
                 best_teams[tag] = row
-        advisor = cls(model_stats, best_teams, explore=explore)
+        advisor = cls(model_stats, best_teams, explore=explore,
+                      schedule_exploration=schedule_exploration)
         advisor._seat_counts = store.seat_attempt_counts()
         return advisor
 
@@ -169,7 +176,8 @@ class MemoryAdvisor:
         # epsilon exploration: on scheduled runs, candidates tried FEWER times
         # than the incumbent (the tag's max) outbid it — the stuck winner
         # itself never receives the nudge, so it can be dethroned
-        active, epsilon, n = self.exploration_state(tag, role)
+        active, epsilon, n = (self.exploration_state(tag, role)
+                              if self._schedule_exploration else (False, 0.0, 0))
         if active and attempts < self._max_tag_attempts(tag):
             total += EXPLORE_NUDGE
             reasons.append(

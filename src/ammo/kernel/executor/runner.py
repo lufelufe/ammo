@@ -101,29 +101,28 @@ class Runner:
                 allowed_tools=list(plan.required_tools),
                 context=step_context,
             )
-            response = self._execute_with_retry(adapter, request)
+            # consensus: the lead seat's question is answered independently by
+            # alternate models too; a later checker compares them (measured
+            # agreement instead of the absence-of-objection proxy). Lead and
+            # alternates are independent BY DESIGN, so they fan out in
+            # parallel — N variants cost one call's latency, not N (real
+            # calls take ~5s each; measured 2026-07-04).
+            consensus = plan.consensus
+            alt_models = (list(consensus.get("models") or [])
+                          if consensus and step.role == consensus["role"] else [])
+            if alt_models:
+                response, alt_responses = self._fan_out(
+                    adapter, request, alt_models, plan, task, step, step_context)
+            else:
+                response, alt_responses = self._execute_with_retry(adapter, request), []
             self._attach_verdict_evidence(step.role, response)
             if step.role in CHECKER_ROLES and plan.consensus:
                 self._attach_consensus_evidence(response)
             responses.append(response)
             context[step.role] = response.output
-
-            # consensus: the lead seat's question is answered independently by
-            # alternate models too; a later checker compares them (measured
-            # agreement instead of the absence-of-objection proxy)
-            consensus = plan.consensus
-            if consensus and step.role == consensus["role"]:
-                for alt_model in consensus.get("models") or []:
-                    alt = self._execute_with_retry(
-                        self._make_adapter(alt_model),
-                        AdapterRequest(role=step.role, model=alt_model,
-                                       task_input=task.raw_input,
-                                       system=plan.selected_system,
-                                       allowed_tools=list(plan.required_tools),
-                                       context=dict(step_context)),
-                    )
-                    responses.append(alt)
-                    context[f"{step.role}~alt:{alt_model}"] = alt.output
+            for alt_model, alt in alt_responses:
+                responses.append(alt)
+                context[f"{step.role}~alt:{alt_model}"] = alt.output
 
             # debate: the marked challenger's objection triggers rebuttal
             # rounds before the pipeline continues (challenge -> proposer
@@ -177,6 +176,30 @@ class Runner:
             self._attach_verdict_evidence(challenger, final)
             responses.append(final)
             context[challenger] = final.output
+
+    def _fan_out(self, adapter, request, alt_models, plan, task, step,
+                 step_context):
+        """Run the lead seat and its consensus alternates CONCURRENTLY.
+
+        Safe because each variant answers the same question independently
+        (identical context, no cross-dependence) — results and their order are
+        exactly the sequential ones; only wall-clock changes. Adapters are
+        per-call (subprocess/HTTP/mock), so threads don't share state."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=1 + len(alt_models)) as pool:
+            lead_future = pool.submit(self._execute_with_retry, adapter, request)
+            alt_futures = [
+                (alt_model, pool.submit(
+                    self._execute_with_retry, self._make_adapter(alt_model),
+                    AdapterRequest(role=step.role, model=alt_model,
+                                   task_input=task.raw_input,
+                                   system=plan.selected_system,
+                                   allowed_tools=list(plan.required_tools),
+                                   context=dict(step_context))))
+                for alt_model in alt_models
+            ]
+            return lead_future.result(), [(m, f.result()) for m, f in alt_futures]
 
     def _execute_with_retry(self, adapter: BaseModelAdapter,
                             request: AdapterRequest) -> AdapterResponse:

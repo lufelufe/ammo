@@ -24,6 +24,10 @@ class AmmoConfig:
     # user-authored role assignment (slot id -> model id): who plays
     # orchestrator / critic / worker / builder. See ammo.roleplan.
     roles: Dict[str, str] = field(default_factory=dict)
+    # learned confidence correction (`ammo calibrate --apply`): a bounded
+    # global offset derived from the user's good/bad verdicts, applied by the
+    # Confidence Engine so scores track ground truth. 0.0 = uncalibrated.
+    confidence_offset: float = 0.0
     configured_at: str = ""
 
     def to_dict(self):
@@ -36,6 +40,7 @@ class AmmoConfig:
             "models": self.models,
             "default_objective": self.default_objective,
             "roles": self.roles,
+            "confidence_offset": self.confidence_offset,
             "configured_at": self.configured_at,
         }
 
@@ -58,6 +63,7 @@ def load_config(root: Path) -> Optional[AmmoConfig]:
         models=list(data.get("models") or []),
         default_objective=data.get("default_objective", "balanced"),
         roles={str(k): str(v) for k, v in (data.get("roles") or {}).items() if v},
+        confidence_offset=float(data.get("confidence_offset") or 0.0),
         configured_at=str(data.get("configured_at", "")),
     )
 

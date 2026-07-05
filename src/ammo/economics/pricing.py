@@ -57,13 +57,20 @@ class PricingBook:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         prices = {}
         for entry in data.get("models", []) or []:
-            prices[entry["id"]] = ModelPrice(
-                id=entry["id"],
-                billing=entry.get("billing", "local"),
-                price_per_mtok_in=float(entry.get("price_per_mtok_in") or 0),
-                price_per_mtok_out=float(entry.get("price_per_mtok_out") or 0),
-                source=entry.get("source", "estimate"),
-            )
+            # A family entry (`engines: [claude_a, claude_b]`) prices every
+            # composed node `{engine}_{id}` identically — the price is a
+            # property of the MODEL, not of the account serving it. Mirrors
+            # registry/models.yaml expansion (registry/loaders.py).
+            engines = entry.get("engines") or []
+            node_ids = [f"{engine}_{entry['id']}" for engine in engines] or [entry["id"]]
+            for node_id in node_ids:
+                prices[node_id] = ModelPrice(
+                    id=node_id,
+                    billing=entry.get("billing", "local"),
+                    price_per_mtok_in=float(entry.get("price_per_mtok_in") or 0),
+                    price_per_mtok_out=float(entry.get("price_per_mtok_out") or 0),
+                    source=entry.get("source", "estimate"),
+                )
         return cls(prices, path=path, currency=data.get("currency", "USD"),
                    as_of=str(data.get("as_of", "")))
 
