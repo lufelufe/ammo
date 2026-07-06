@@ -136,8 +136,10 @@ You build the team through a three-gate funnel, member by member:
 1. **Engine** — pick a commercial or local LLM engine (Claude account A / account
    B, Codex, Ollama). Each shows its readiness; a not-ready engine drops into a
    resolve gate that tells you how to log in / prepare it.
-2. **Model** — pick the concrete model that engine serves (Claude → opus / fable
-   / sonnet / haiku; Codex → gpt-5; …).
+2. **Model** — pick the concrete model that engine serves. Every engine exposes
+   the **full menu** it can serve, never a per-account subset: because one Claude
+   subscription runs any Claude model via `--model`, *both* Claude accounts list
+   opus / fable / sonnet / haiku (Codex → gpt-5; …).
 3. **Role** — pick the seat that engine·model plays (**orchestrator / critic /
    simple worker / builder**).
 
@@ -185,9 +187,17 @@ Run a full request through the kernel loop:
 ```bash
 ./ammo run --mock "fix the bug in this repo and add tests"   # dry-run, spends nothing
 ./ammo run --real "..."                                       # calls authenticated CLIs
+./ammo run --real --consensus 3 "..."                         # answer the lead seat with 3 models, measure agreement
 ./ammo show-run <run-id>                                      # inspect a stored run
 ./ammo feedback <run-id> good|bad                             # ground truth for learning
 ```
+
+A **high-risk** task escalates verification on its own — the kernel samples the
+lead seat with independent models by default so agreement is *measured* rather
+than assumed (`--no-escalate` opts out; an explicit `--consensus N` wins). The
+Confidence Engine will not award the top `high` band to a real run unless a
+measured signal backs it (passing tests, measured consensus, a successful tool
+execution, declared success evidence, or an objection resolved through debate).
 
 ### The command surface, by stage
 
@@ -196,12 +206,12 @@ Run a full request through the kernel loop:
 | **Understand** | `analyze` — request → TaskVector (rule-based, no model call) |
 | **Capability graph** | `list-models`, `score-models` — score models against a request |
 | **Team** | `plan-team` — form a team (ExecutionPlan) without executing |
-| **Execute** | `run`, `show-run`, `promote` (apply a run's sandboxed writes after a diff) |
-| **Confidence** | surfaced in every `run`; `calibrate` compares scores vs. feedback |
+| **Execute** | `run` (`--consensus N`, `--no-escalate`, `--execute-tools`, `--read`), `show-run`, `promote` (apply a run's sandboxed writes after a diff) |
+| **Confidence** | surfaced in every `run`; `calibrate` compares scores vs. feedback and, with `--apply`, stores a learned correction the engine applies to future runs |
 | **Memory / learn** | `memory`, `feedback`, `dream` (consolidate memory), `efficiency` (quality-per-cost) |
 | **Systems** | `list-systems`, `inspect-system`, `new-system`, `connect`, `disconnect`, `adopt`, `eval-system(s)` |
 | **Providers / models** | `providers` (detect CLIs/API/local), `bind`, `pricing` |
-| **Health** | `doctor`, `eval` (score AMMO's decisions), `role-log` |
+| **Health / eval** | `doctor`; `eval` (score AMMO's decisions), `eval --learning` (static-vs-memory delta per seat), `eval --compare` (report series / improvement curve); `role-log` |
 
 Full help: `./ammo --help` (or `./ammo <command> --help`).
 
@@ -252,9 +262,24 @@ pytest
 ## Status
 
 The kernel loop — understand → team → execute → confidence → memory → learn —
-is implemented end-to-end, including **real** execution via authenticated CLIs
-(multi-model), measured consensus (N-way lead sampling), grounded workers (read
-real files before answering), measured latency, and an interactive shell.
+is implemented end-to-end, and the **learning loop is closed**:
+
+- **Real execution** via authenticated CLIs (multi-model), with consensus
+  variants that **fan out in parallel** (N variants cost one call's latency).
+- **Evidence-based confidence** that never trusts a model's self-report; an
+  unverified real run is **capped below the `high` band** until a measured
+  signal earns it, and **high-risk tasks auto-escalate** their own verification.
+- **Ground-truth feedback**: `ammo feedback <run> good|bad` verdicts beat the
+  confidence proxy everywhere success is credited and **survive memory
+  consolidation** (`dream`); `calibrate --apply` folds them into a learned
+  confidence correction.
+- **Measured learning**: `eval --learning` shows what accumulated memory changed
+  per seat (with the recorded stats that justify each swap); `eval --compare`
+  charts the improvement curve.
+- Grounded workers (read real files before answering), measured latency, an
+  interactive shell, and OS-level isolation for tool execution (macOS seatbelt;
+  Linux bubblewrap, behaviorally verified).
+
 Current state and history: [`docs/ROADMAP.md`](docs/ROADMAP.md); deferred items:
 [`docs/BACKLOG.md`](docs/BACKLOG.md).
 
