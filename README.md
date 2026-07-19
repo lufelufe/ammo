@@ -115,14 +115,17 @@ AMMO is summoned differently depending on where you are:
 | You are in… | Summon with | Runs from |
 |---|---|---|
 | **A terminal** | `./ammo start` (or `ammo start` with the venv activated) | the **repo root** (the folder you cloned) |
-| **Claude Code** | just say **`ammo`** | any dir — `CLAUDE.md` carries the summon line (`--host claude-code`) |
-| **Codex** | just say **`ammo`** | reads `AGENTS.md` natively → its *Summon* section |
-| **Qwen / Gemini** | just say **`ammo`** | pointer files `QWEN.md` / `GEMINI.md` → `AGENTS.md` |
+| **Claude Code** | just say **`@ammo`** | any dir — `CLAUDE.md` carries the summon line (`--host claude-code`) |
+| **Codex** | just say **`@ammo`** | reads `AGENTS.md` natively → its *Summon* section |
+| **Qwen / Gemini** | just say **`@ammo`** | pointer files `QWEN.md` / `GEMINI.md` → `AGENTS.md` |
 
-Inside an agent host, the one word **`ammo`** is enough — the host's
-instruction file (`CLAUDE.md` / `AGENTS.md` / …) runs the summon for you. In a
-bare terminal, use the `./ammo` launcher from the repo root. The first summon
-runs a short setup wizard; every later one prints a one-screen ready summary.
+Inside an agent host, the one word **`@ammo`** is enough — the host's
+instruction file (`CLAUDE.md` / `AGENTS.md` / …) runs the summon for you. The
+sigil is deliberate: a bare "ammo" in ordinary chat is just the product name
+and will **not** wake the kernel, so it never triggers by accident mid-task.
+In a bare terminal, use the `./ammo` launcher from the repo root. The first
+summon runs a short setup wizard; every later one prints a one-screen ready
+summary.
 
 ```bash
 ./ammo start          # summon: first-run wizard, or the ready summary if configured
@@ -161,7 +164,7 @@ itself — the global roles are the base, a workspace's binding overrides the se
 it sets: `./ammo roles set --system <id> --critic claude_a_haiku` (inspect with
 `./ammo roles show --system <id>`).
 
-In Claude Code, just say **`ammo`** and the host walks you through the gates as
+In Claude Code, just say **`@ammo`** and the host walks you through the gates as
 cards; in a terminal, `./ammo roles set` runs them as numbered prompts.
 
 ### Interactive shell (recommended)

@@ -1,13 +1,15 @@
-# Summon Protocol — the word is "ammo"
+# Summon Protocol — the word is "@ammo"
 
-AMMO can be summoned from any environment with one word: **ammo**. The summon
+AMMO can be summoned from any environment with one word: **@ammo**. The sigil
+prefix is deliberate — a bare "ammo" in prose is just the product name and does
+NOT summon, so the kernel never wakes by accident mid-conversation. The summon
 runs `python -m ammo start --host <id>`; the first summon is a short setup
 wizard, every later summon is a one-screen ready summary.
 
 ## Design principles
 
 1. **One word everywhere.** Terminal, Claude Code, Codex, any agent — the user
-   says "ammo". Hosts differ only in a thin shim.
+   says "@ammo". Hosts differ only in a thin shim.
 2. **The summoning host anchors the primary model.** Being summoned from Claude
    Code means an authenticated claude CLI exists — so its model is proposed as
    the primary seat. Same for Codex. The user confirms; nothing is assumed.

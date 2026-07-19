@@ -5,5 +5,6 @@ AMMO is model-neutral, so its development guide is tool-neutral. See
 conventions — that is the single source Claude Code and any other agent should
 follow. The constitution's canonical copy lives in `docs/AMMO_MANIFESTO.md` §5.
 
-**Summon:** when the user says **"ammo"**, run
+**Summon:** when the user says **"@ammo"** (the sigil-prefixed wake word — a
+bare "ammo" in prose does NOT trigger it), run
 `python -m ammo start --host claude-code` and show its output (`docs/SUMMON.md`).

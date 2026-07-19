@@ -23,14 +23,16 @@ assistant. Claude Code, other agents, and humans should all follow this.
 9. Do not destructively move existing personal/investment folders. If importing
    is needed, create a safe copy or ask for the source path.
 
-## Summon ("ammo")
+## Summon ("@ammo")
 
-When the user says **"ammo"** (bare, as a wake word), run
+When the user says **"@ammo"** (the sigil-prefixed wake word), run
 `python -m ammo start --host <your-host-id>` (`claude-code`, `codex`, …) and
 show its output. First summon = a 4-step setup wizard; later summons = the
 ready summary. Do not auto-connect workspaces or bind models on the user's
 behalf — those grant permissions and stay explicit (`ammo connect`,
-`ammo bind`). Protocol: `docs/SUMMON.md`.
+`ammo bind`). The sigil matters: a bare **"ammo"** in prose is just the product
+name and must NOT summon — only the literal **"@ammo"** does. Protocol:
+`docs/SUMMON.md`.
 
 ## Kernel loop → where each stage lives
 
@@ -139,7 +141,7 @@ Linux isolation (see `docs/BACKLOG.md`).
 - **UI has three test layers:** (1) capsys output assertions (content),
   (2) **real-TTY interactive tests** via pexpect (`tests/test_ui_tty.py` —
   prompts appear, answers steer, outcomes match), (3) a `--help` surface net
-  asserting every registered command is listed. Host-shim UX (saying "ammo"
+  asserting every registered command is listed. Host-shim UX (saying "@ammo"
   inside Claude Code/Codex) stays a manual smoke: summon once after changing
   the Summon section here or `docs/SUMMON.md`.
 - After a change, verify the repo stays clean: no `runtime/runs`,
